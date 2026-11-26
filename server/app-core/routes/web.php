@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAuthController;
+use App\Http\Controllers\Admin\SurveyAdminController;
 use App\Http\Controllers\Admin\ClusterAdminController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LeaveAdminController;
@@ -13,6 +14,15 @@ use App\Http\Controllers\Admin\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/admin');
+
+/* Feature 44 — panel language switch (Dari / Pashto), stored in the session. */
+Route::get('/lang/{loc}', function (string $loc) {
+    if (in_array($loc, ['fa', 'ps'], true)) {
+        session(['admin_locale' => $loc]);
+    }
+
+    return back();
+})->name('panel.lang');
 
 /*
 |--------------------------------------------------------------------------
@@ -30,8 +40,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/map', [MapController::class, 'index'])->name('admin.map');
         Route::get('/map/data', [MapController::class, 'data'])->name('admin.map.data');
 
+        Route::get('/surveys', [SurveyAdminController::class, 'index'])->name('admin.surveys');
         Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports');
         Route::get('/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
+        Route::get('/reports/monthly-print', [ReportController::class, 'monthlyPrint'])->name('admin.reports.monthlyPrint');
 
         Route::get('/clusters', [ClusterAdminController::class, 'index'])->name('admin.clusters.index');
         Route::get('/clusters/create', [ClusterAdminController::class, 'create'])->name('admin.clusters.create');
@@ -65,5 +77,6 @@ Route::prefix('admin')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class, 'update'])->name('admin.settings.update');
         Route::post('/settings/rules', [SettingsController::class, 'updateRules'])->name('admin.settings.rules');
+        Route::post('/settings/app-version', [SettingsController::class, 'updateAppVersion'])->name('admin.settings.appVersion');
     });
 });

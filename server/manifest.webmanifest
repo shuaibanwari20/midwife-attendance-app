@@ -1,0 +1,16 @@
+{
+  "name": "حضور قابله — پنل مدیریت",
+  "short_name": "حضور قابله",
+  "start_url": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "fa",
+  "background_color": "#0A4A51",
+  "theme_color": "#0A4A51",
+  "icons": [
+    { "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

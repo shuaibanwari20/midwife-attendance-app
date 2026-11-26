@@ -56,6 +56,59 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Print-ready monthly report (Feature 3) — one row per midwife with
+     * present / late / absent / leave counted exactly like the app history
+     * (AttendanceService::dayStatus), plus totals and signature blocks.
+     * The admin prints it or saves it as PDF from the browser.
+     */
+    public function monthlyPrint(Request $request): View
+    {
+        $monthParam = (string) $request->query('month', '');
+        $start = preg_match('/^\d{4}-\d{2}$/', $monthParam)
+            ? Carbon::createFromFormat('Y-m', $monthParam, 'Asia/Kabul')->startOfMonth()
+            : \App\Support\AttendanceService::now()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $today = \App\Support\AttendanceService::now()->startOfDay();
+        $lastDay = $end->lessThan($today) ? $end : $today;
+
+        $attendances = Attendance::whereDate('attendance_date', '>=', $start->toDateString())
+            ->whereDate('attendance_date', '<=', $end->toDateString())
+            ->get()
+            ->keyBy(fn ($a) => $a->midwife_id.'|'.Carbon::parse($a->attendance_date)->toDateString());
+
+        $rows = [];
+        $totals = ['on_time' => 0, 'late' => 0, 'absent' => 0, 'leave' => 0];
+        foreach (Midwife::with('cluster')->orderBy('code')->get() as $midwife) {
+            $counts = ['on_time' => 0, 'late' => 0, 'absent' => 0, 'leave' => 0];
+            for ($day = $start->copy(); $day->lessThanOrEqualTo($lastDay); $day->addDay()) {
+                $attendance = $attendances->get($midwife->id.'|'.$day->toDateString());
+                $status = \App\Support\AttendanceService::dayStatus($midwife, $day->copy(), $attendance);
+                if (isset($counts[$status])) {
+                    $counts[$status]++;
+                }
+            }
+            $attended = $counts['on_time'] + $counts['late'];
+            $obligated = $attended + $counts['absent'];
+            $counts['percent'] = $obligated > 0 ? (int) round($attended / $obligated * 100) : 100;
+            foreach ($totals as $k => $_) {
+                $totals[$k] += $counts[$k];
+            }
+            $rows[] = ['midwife' => $midwife] + $counts;
+        }
+        $totAttended = $totals['on_time'] + $totals['late'];
+        $totObligated = $totAttended + $totals['absent'];
+        $totals['percent'] = $totObligated > 0 ? (int) round($totAttended / $totObligated * 100) : 100;
+
+        return view('admin.reports-monthly-print', [
+            'rows' => $rows,
+            'totals' => $totals,
+            'monthStart' => $start,
+            'monthEnd' => $lastDay,
+            'generatedAt' => \App\Support\AttendanceService::now(),
+        ]);
+    }
+
     public function export(Request $request)
     {
         $filters = $this->filters($request);

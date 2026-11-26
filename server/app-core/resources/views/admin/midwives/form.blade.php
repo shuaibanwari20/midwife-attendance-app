@@ -9,7 +9,7 @@
         <div class="sub">پین 4 رقمی برای ورود قابله به اپلیکیشن موبایل استفاده می‌شود</div>
     </div>
     <div class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ route('admin.midwives.index') }}">بازگشت به لیست</a>
+        <a class="btn btn-ghost btn-sm" href="{{ route('admin.midwives.index') }}">{{ \App\Support\PanelText::t('بازگشت به لیست') }}</a>
     </div>
 </div>
 
@@ -20,17 +20,17 @@
 
         <div class="form-grid">
             <div>
-                <label class="field-label">نام کامل *</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('نام کامل *') }}</label>
                 <input class="form-control" name="full_name" value="{{ old('full_name', $midwife->full_name ?? '') }}" required>
             </div>
             <div>
-                <label class="field-label">شماره تلیفون</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('شماره تلیفون') }}</label>
                 <input class="form-control" name="phone" value="{{ old('phone', $midwife->phone ?? '') }}" placeholder="0700 123 456">
             </div>
             <div>
-                <label class="field-label">کلستر *</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('کلستر *') }}</label>
                 <select class="form-control" name="cluster_id" required>
-                    <option value="">انتخاب کنید...</option>
+                    <option value="">{{ \App\Support\PanelText::t('انتخاب کنید...') }}</option>
                     @foreach($clusters as $cluster)
                         <option value="{{ $cluster->id }}" @selected(old('cluster_id', $midwife->cluster_id ?? '') == $cluster->id)>
                             {{ \App\Support\DariDate::en($cluster->code) }} — {{ $cluster->village }}
@@ -45,22 +45,20 @@
                 <div class="form-hint">{{ $midwife ? 'اگر خالی باشد پین فعلی حفظ می‌شود.' : 'پین ورود قابله به اپلیکیشن' }}</div>
             </div>
             <div>
-                <label class="field-label">باقی‌مانده رخصتی (روز)</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('باقی‌مانده رخصتی (روز)') }}</label>
                 <input class="form-control" type="number" name="leave_balance" min="0" max="365"
                        value="{{ old('leave_balance', $midwife->leave_balance ?? 12) }}">
             </div>
             <div>
-                <label class="field-label">وضعیت</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('وضعیت') }}</label>
                 <label style="font-weight: 600;">
-                    <input type="checkbox" name="active" value="1" @checked(old('active', $midwife->active ?? true))>
-                    فعال
-                </label>
+                    <input type="checkbox" name="active" value="1" @checked(old('active', $midwife->active ?? true))>{{ \App\Support\PanelText::t('فعال') }}</label>
             </div>
         </div>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ $midwife ? 'ذخیره تغییرات' : 'ثبت قابله' }}</button>
-            <a class="btn btn-ghost" href="{{ route('admin.midwives.index') }}">انصراف</a>
+            <a class="btn btn-ghost" href="{{ route('admin.midwives.index') }}">{{ \App\Support\PanelText::t('انصراف') }}</a>
         </div>
     </form>
 </div>

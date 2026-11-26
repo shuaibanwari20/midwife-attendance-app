@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProblemReportController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ServerTimeController;
+use App\Http\Controllers\Api\SurveyController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\WeekController;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('/problem-reports', [ProblemReportController::class, 'store']);
+    Route::get('/survey', [SurveyController::class, 'current']);
+    Route::post('/survey', [SurveyController::class, 'respond']);
     Route::post('/sync', [SyncController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });

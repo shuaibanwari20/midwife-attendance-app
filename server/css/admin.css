@@ -116,6 +116,10 @@ body.no-scroll { overflow: hidden; }
 }
 .topbar-title { font-size: 18px; font-weight: 800; }
 .topbar-date { margin-inline-start: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.lang-switch { display: flex; gap: 4px; background: var(--surface-alt, #EFF4F2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+.lang-switch a { text-decoration: none; font-size: 12.5px; font-weight: 700; color: var(--muted); padding: 4px 12px; border-radius: 999px; }
+.lang-switch a.active { background: var(--teal-800, #0D5C63); color: #fff; }
+
 .hamburger {
   display: none; width: 40px; height: 40px; flex-shrink: 0;
   border: 1.5px solid #DCE6E3; background: #fff; color: var(--teal-800);

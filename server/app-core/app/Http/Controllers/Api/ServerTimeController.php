@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Support\AttendanceService;
 use App\Support\DariDate;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +29,12 @@ class ServerTimeController extends Controller
                 'work_start' => AttendanceService::workStart()->format('H:i'),
                 'work_end' => AttendanceService::workEnd()->format('H:i'),
                 'late_until' => AttendanceService::workEnd()->format('H:i'),
+                // Feature 30 — newest published app version (update banner).
+                'app_update' => [
+                    'latest_version_code' => (int) (Setting::get('app_latest_version_code') ?: 1),
+                    'url' => (string) (Setting::get('app_update_url') ?: ''),
+                    'note' => (string) (Setting::get('app_update_note') ?: ''),
+                ],
             ],
         ]);
     }

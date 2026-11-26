@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
         ]);
 
+        // Feature 44 — panel language (Dari / Pashto) from the session.
+        $middleware->web(append: [\App\Http\Middleware\SetAdminLocale::class]);
+
         // Unauthenticated API calls must get 401 JSON, never a redirect/500.
         $middleware->redirectGuestsTo(fn (\Illuminate\Http\Request $request) => $request->is('api/*') ? null : route('admin.login'));
 

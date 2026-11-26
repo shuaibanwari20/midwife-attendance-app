@@ -19,7 +19,33 @@ class SettingsController extends Controller
             'workEnd' => AttendanceService::workEnd()->format('H:i'),
             'lateUntil' => AttendanceService::workEnd()->format('H:i'),
             'maxAccuracy' => config('midwife.max_gps_accuracy'),
+            'appLatestVersion' => (int) (Setting::get('app_latest_version_code') ?: 1),
+            'appUpdateUrl' => (string) (Setting::get('app_update_url') ?: ''),
+            'appUpdateNote' => (string) (Setting::get('app_update_note') ?: ''),
         ]);
+    }
+
+    /**
+     * Feature 30 — publish the newest app version. Every midwife app older
+     * than this code shows an update banner on its home screen.
+     */
+    public function updateAppVersion(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'latest_version_code' => ['required', 'integer', 'min:1', 'max:9999'],
+            'update_url' => ['nullable', 'url', 'max:500'],
+            'update_note' => ['nullable', 'string', 'max:300'],
+        ], [
+            'latest_version_code.required' => 'کد نسخهٔ جدید را وارد کنید.',
+            'latest_version_code.integer' => 'کد نسخه باید عدد باشد.',
+            'update_url.url' => 'لینک دانلود نامعتبر است.',
+        ]);
+
+        Setting::set('app_latest_version_code', (string) $data['latest_version_code']);
+        Setting::set('app_update_url', (string) ($data['update_url'] ?? ''));
+        Setting::set('app_update_note', (string) ($data['update_note'] ?? ''));
+
+        return back()->with('ok', 'نسخهٔ جدید اپ ثبت شد — اپ‌های قدیمی‌تر از همین حالا خبر می‌شوند.');
     }
 
     /** Save the working hours (شروع کار / ختم کار) — applies immediately. */

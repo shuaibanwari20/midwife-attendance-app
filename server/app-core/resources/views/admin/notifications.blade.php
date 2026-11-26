@@ -1,45 +1,45 @@
 @extends('admin.layout')
 
-@section('title', 'اعلان‌ها و پیام‌ها')
+@section('title', \App\Support\PanelText::t('اعلان‌ها و پیام‌ها'))
 
 @section('content')
 <div class="page-title">
     <div>
-        <h1>اعلان‌ها و پیام‌های مدیریت</h1>
-        <div class="sub">ارسال اعلان به همه، یک کلستر یا یک قابله مشخص</div>
+        <h1>{{ \App\Support\PanelText::t('اعلان‌ها و پیام‌های مدیریت') }}</h1>
+        <div class="sub">{{ \App\Support\PanelText::t('ارسال اعلان به همه، یک کلستر یا یک قابله مشخص') }}</div>
     </div>
 </div>
 
 <div class="card gold-top">
-    <h2>ارسال اعلان جدید</h2>
+    <h2>{{ \App\Support\PanelText::t('ارسال اعلان جدید') }}</h2>
     <form method="POST" action="{{ route('admin.notifications.store') }}">
         @csrf
         <div class="form-grid">
             <div>
-                <label class="field-label">عنوان *</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('عنوان *') }}</label>
                 <input class="form-control" name="title" value="{{ old('title') }}" required maxlength="160">
             </div>
             <div>
-                <label class="field-label">گیرنده *</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('گیرنده *') }}</label>
                 <select class="form-control" name="target" id="target-select" required>
-                    <option value="all" @selected(old('target') === 'all')>همه قابله‌ها</option>
-                    <option value="cluster" @selected(old('target') === 'cluster')>یک کلستر</option>
-                    <option value="midwife" @selected(old('target') === 'midwife')>یک قابله</option>
+                    <option value="all" @selected(old('target') === 'all')>{{ \App\Support\PanelText::t('همه قابله‌ها') }}</option>
+                    <option value="cluster" @selected(old('target') === 'cluster')>{{ \App\Support\PanelText::t('یک کلستر') }}</option>
+                    <option value="midwife" @selected(old('target') === 'midwife')>{{ \App\Support\PanelText::t('یک قابله') }}</option>
                 </select>
             </div>
             <div id="cluster-field" style="display: {{ old('target') === 'cluster' ? 'block' : 'none' }};">
-                <label class="field-label">کلستر</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('کلستر') }}</label>
                 <select class="form-control" name="cluster_id">
-                    <option value="">انتخاب کنید...</option>
+                    <option value="">{{ \App\Support\PanelText::t('انتخاب کنید...') }}</option>
                     @foreach($clusters as $cluster)
                         <option value="{{ $cluster->id }}">{{ \App\Support\DariDate::en($cluster->code) }} — {{ $cluster->village }}</option>
                     @endforeach
                 </select>
             </div>
             <div id="midwife-field" style="display: {{ old('target') === 'midwife' ? 'block' : 'none' }};">
-                <label class="field-label">قابله</label>
+                <label class="field-label">{{ \App\Support\PanelText::t('قابله') }}</label>
                 <select class="form-control" name="midwife_id">
-                    <option value="">انتخاب کنید...</option>
+                    <option value="">{{ \App\Support\PanelText::t('انتخاب کنید...') }}</option>
                     @foreach($midwives as $midwife)
                         <option value="{{ $midwife->id }}">{{ \App\Support\DariDate::en($midwife->code) }} — {{ $midwife->full_name }}</option>
                     @endforeach
@@ -47,27 +47,27 @@
             </div>
         </div>
         <div style="margin-top: 12px;">
-            <label class="field-label">متن اعلان *</label>
+            <label class="field-label">{{ \App\Support\PanelText::t('متن اعلان *') }}</label>
             <textarea class="form-control" name="body" required maxlength="2000">{{ old('body') }}</textarea>
         </div>
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">ارسال اعلان</button>
+            <button type="submit" class="btn btn-primary">{{ \App\Support\PanelText::t('ارسال اعلان') }}</button>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <h2>اعلان‌های ارسال‌شده</h2>
+    <h2>{{ \App\Support\PanelText::t('اعلان‌های ارسال‌شده') }}</h2>
     <div class="table-wrap">
         <table class="data">
             <thead>
             <tr>
-                <th>عنوان</th>
-                <th>متن</th>
-                <th>گیرنده</th>
-                <th>تاریخ ارسال</th>
-                <th>توسط</th>
-                <th>عملیات</th>
+                <th>{{ \App\Support\PanelText::t('عنوان') }}</th>
+                <th>{{ \App\Support\PanelText::t('متن') }}</th>
+                <th>{{ \App\Support\PanelText::t('گیرنده') }}</th>
+                <th>{{ \App\Support\PanelText::t('تاریخ ارسال') }}</th>
+                <th>{{ \App\Support\PanelText::t('توسط') }}</th>
+                <th>{{ \App\Support\PanelText::t('عملیات') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -77,7 +77,7 @@
                     <td class="small" style="max-width: 380px;">{{ $n->body }}</td>
                     <td>
                         @if($n->target === 'all')
-                            <span class="chip chip-teal">همه قابله‌ها</span>
+                            <span class="chip chip-teal">{{ \App\Support\PanelText::t('همه قابله‌ها') }}</span>
                         @elseif($n->target === 'cluster')
                             <span class="chip chip-gold">کلستر {{ \App\Support\DariDate::en($n->cluster->code ?? '') }} — {{ $n->cluster->village ?? '' }}</span>
                         @else
@@ -90,12 +90,12 @@
                         <form method="POST" action="{{ route('admin.notifications.destroy', $n->id) }}" class="inline-form">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('این اعلان حذف شود؟');">حذف</button>
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('این اعلان حذف شود؟');">{{ \App\Support\PanelText::t('حذف') }}</button>
                         </form>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="muted text-center">اعلانی ثبت نشده است.</td></tr>
+                <tr><td colspan="6" class="muted text-center">{{ \App\Support\PanelText::t('اعلانی ثبت نشده است.') }}</td></tr>
             @endforelse
             </tbody>
         </table>

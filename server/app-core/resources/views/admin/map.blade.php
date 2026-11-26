@@ -1,6 +1,6 @@
 @extends('admin.layout')
 
-@section('title', 'نقشه کلسترها')
+@section('title', \App\Support\PanelText::t('نقشه کلسترها'))
 
 @section('head')
     <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}"
@@ -26,23 +26,22 @@
 @section('content')
 <div class="page-title">
     <div>
-        <h1>نقشه کلسترها</h1>
+        <h1>{{ \App\Support\PanelText::t('نقشه کلسترها') }}</h1>
         <div class="sub">42 کلستر روی نقشه OpenStreetMap — روی نشانه کلیک کنید تا وضعیت امروز قابله‌ها را ببینید</div>
     </div>
     <div class="actions">
-        <span class="chip chip-gold" id="date-chip">در حال بارگذاری...</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadData()">به‌روزرسانی</button>
+        <span class="chip chip-gold" id="date-chip">{{ \App\Support\PanelText::t('در حال بارگذاری...') }}</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadData()">{{ \App\Support\PanelText::t('به‌روزرسانی') }}</button>
     </div>
 </div>
 
 <div class="card" style="padding: 10px; position: relative;">
     <div id="map-canvas"></div>
     <div class="map-legend">
-        <strong>راهنما:</strong><br>
-        <span style="color:#C59A36">●</span> مرکز کلستر (شعاع 150 متر)<br>
-        <span style="color:#2FA36B">●</span> حاضر به‌وقت &nbsp; <span style="color:#D69E2E">●</span> دیرکرد<br>
-        <span style="color:#D9534F">●</span> بدون ثبت &nbsp; <span style="color:#9AA8AB">●</span> رخصتی
-    </div>
+        <strong>{{ \App\Support\PanelText::t('راهنما:') }}</strong><br>
+        <span style="color:#C59A36">●</span>{{ \App\Support\PanelText::t('مرکز کلستر (شعاع 150 متر)') }}<br>
+        <span style="color:#2FA36B">●</span>{{ \App\Support\PanelText::t('حاضر به‌وقت') }}&nbsp; <span style="color:#D69E2E">●</span>{{ \App\Support\PanelText::t('دیرکرد') }}<br>
+        <span style="color:#D9534F">●</span>{{ \App\Support\PanelText::t('بدون ثبت') }}&nbsp; <span style="color:#9AA8AB">●</span>{{ \App\Support\PanelText::t('رخصتی') }}</div>
 </div>
 @endsection
 

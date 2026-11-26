@@ -10,7 +10,10 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        User::updateOrCreate(
+        // firstOrCreate: the default password is set ONLY when the account
+        // is first created — re-seeding must never overwrite a password
+        // the admin has since changed in Settings.
+        User::firstOrCreate(
             ['email' => 'admin@anwari.tech'],
             [
                 'name' => 'مدیر موسسه',

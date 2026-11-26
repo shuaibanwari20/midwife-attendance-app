@@ -115,6 +115,6 @@ class MidwifeAdminController extends Controller
     {
         $max = (int) Midwife::max('id');
 
-        return 'MW-'.str_pad((string) ($max + 1), 2, '0', STR_PAD_LEFT);
+        return 'MW-'.str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
     }
 }

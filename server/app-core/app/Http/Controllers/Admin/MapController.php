@@ -38,6 +38,9 @@ class MapController extends Controller
                 if ($attendance) {
                     $state = $attendance->status;
                     $label = ($attendance->status === 'on_time' ? 'حاضر به‌وقت' : 'دیرکرد').' — '.DariDate::time($attendance->checked_at_server);
+                } elseif (! AttendanceService::hasJoinedBy($midwife, AttendanceService::now())) {
+                    $state = 'before_join';
+                    $label = 'تازه ثبت شده';
                 } elseif (in_array($midwife->id, $leaveIds, true)) {
                     $state = 'leave';
                     $label = 'رخصتی';

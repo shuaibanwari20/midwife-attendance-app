@@ -35,12 +35,27 @@ class DashboardController extends Controller
             ->all();
 
         $rows = [];
-        $counts = ['on_time' => 0, 'late' => 0, 'absent' => 0, 'leave' => 0, 'friday' => 0];
+        $counts = ['on_time' => 0, 'late' => 0, 'absent' => 0, 'leave' => 0, 'friday' => 0, 'before_join' => 0];
 
         $midwives = Midwife::with('cluster')->orderBy('code')->get();
 
         foreach ($midwives as $midwife) {
             $attendance = $attendances->get($midwife->id);
+
+            if (! $attendance && ! AttendanceService::hasJoinedBy($midwife, $now)) {
+                // Account created today after the cutoff (or later) — her
+                // attendance starts on her first obligated day, not today.
+                $counts['before_join']++;
+                $rows[] = [
+                    'midwife' => $midwife,
+                    'attendance' => null,
+                    'state' => 'before_join',
+                    'label' => 'تازه ثبت شده',
+                    'time' => '—',
+                    'distance' => '—',
+                ];
+                continue;
+            }
 
             if ($attendance) {
                 $state = $attendance->status; // on_time | late

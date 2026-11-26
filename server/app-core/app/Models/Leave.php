@@ -11,7 +11,7 @@ class Leave extends Model
 
     protected $fillable = [
         'midwife_id', 'from_date', 'to_date', 'reason', 'status',
-        'reviewed_by', 'review_note',
+        'reviewed_by', 'review_note', 'source',
     ];
 
     protected $casts = [

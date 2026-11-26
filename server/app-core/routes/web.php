@@ -50,8 +50,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/midwives/{id}/unbind-device', [MidwifeAdminController::class, 'unbindDevice'])->name('admin.midwives.unbind');
 
         Route::get('/leaves', [LeaveAdminController::class, 'index'])->name('admin.leaves.index');
+        Route::post('/leaves/manual', [LeaveAdminController::class, 'storeManual'])->name('admin.leaves.manual');
         Route::post('/leaves/{id}/approve', [LeaveAdminController::class, 'approve'])->name('admin.leaves.approve');
         Route::post('/leaves/{id}/reject', [LeaveAdminController::class, 'reject'])->name('admin.leaves.reject');
+        Route::post('/leaves/{id}/delete', [LeaveAdminController::class, 'destroy'])->name('admin.leaves.delete');
 
         Route::get('/notifications', [NotificationAdminController::class, 'index'])->name('admin.notifications.index');
         Route::post('/notifications', [NotificationAdminController::class, 'store'])->name('admin.notifications.store');
@@ -62,5 +64,6 @@ Route::prefix('admin')->group(function () {
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class, 'update'])->name('admin.settings.update');
+        Route::post('/settings/rules', [SettingsController::class, 'updateRules'])->name('admin.settings.rules');
     });
 });

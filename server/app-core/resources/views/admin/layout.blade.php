@@ -56,7 +56,7 @@
     @yield('content')
 
     <div class="footer-note">
-        سیستم ثبت حضور قابله‌ها — اوقات کاری: 8:00 صبح (وقت کابل) · تاخیر تا 8:30 ·
+        سیستم ثبت حضور قابله‌ها — اوقات کاری: شروع {{ \App\Support\DariDate::en(\App\Support\AttendanceService::workStart()->format('H:i')) }} · ختم {{ \App\Support\DariDate::en(\App\Support\AttendanceService::workEnd()->format('H:i')) }} (وقت کابل) ·
         تاریخ‌ها میلادی (عیسوی) — {{ \App\Support\DariDate::full(\App\Support\AttendanceService::now()) }}
     </div>
 </main>

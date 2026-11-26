@@ -81,7 +81,8 @@ class SyncController extends Controller
                 }
 
                 $deviceTime = Carbon::parse($record['device_time']);
-                $date = $deviceTime->copy()->setTimezone(AttendanceService::timezone())->toDateString();
+                $kabulTime = $deviceTime->copy()->setTimezone(AttendanceService::timezone());
+                $date = $kabulTime->toDateString();
 
                 $existingToday = Attendance::where('midwife_id', $midwife->id)
                     ->whereDate('attendance_date', $date)
@@ -91,7 +92,17 @@ class SyncController extends Controller
                     continue;
                 }
 
-                $status = AttendanceService::statusFor($deviceTime->copy()->setTimezone(AttendanceService::timezone()));
+                // Work-hours lock for that day: an offline check-in captured
+                // after the day's end time does not count — the day was over.
+                $workEnd = AttendanceService::workEnd()->setDate(
+                    (int) $kabulTime->year, (int) $kabulTime->month, (int) $kabulTime->day
+                );
+                if ($kabulTime->greaterThan($workEnd)) {
+                    $results[] = ['client_uuid' => $uuid, 'status' => 'rejected', 'message' => 'ساعت کاری آن روز تمام شده بود — ثبت حضور قفل است.'];
+                    continue;
+                }
+
+                $status = AttendanceService::statusFor($kabulTime);
 
                 $attendance = Attendance::create([
                     'midwife_id' => $midwife->id,

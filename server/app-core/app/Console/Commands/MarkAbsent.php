@@ -32,6 +32,15 @@ class MarkAbsent extends Command
             return self::SUCCESS;
         }
 
+        // For today, absence is only final once the work day has ended
+        // (check-in locks at work_end, set by the admin).
+        if ($date->isSameDay(AttendanceService::now()->startOfDay())
+            && AttendanceService::now()->lessThanOrEqualTo(AttendanceService::workEnd())) {
+            $this->info('Work day still open — check-in window has not closed yet.');
+
+            return self::SUCCESS;
+        }
+
         $checkedIds = Attendance::whereDate('attendance_date', $date->toDateString())
             ->pluck('midwife_id')
             ->all();
@@ -45,7 +54,11 @@ class MarkAbsent extends Command
         $absent = Midwife::where('active', true)
             ->whereNotIn('id', $checkedIds)
             ->whereNotIn('id', $leaveIds)
-            ->get();
+            ->get()
+            // Accounts created after this day's cutoff start attending the
+            // next day — they are not absent for a day that predates them.
+            ->filter(fn ($midwife) => AttendanceService::hasJoinedBy($midwife, $date))
+            ->values();
 
         foreach ($absent as $midwife) {
             $this->line(sprintf('غایب: %s (%s)', $midwife->full_name, $midwife->code));

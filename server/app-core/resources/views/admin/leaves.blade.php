@@ -5,9 +5,61 @@
 @section('content')
 <div class="page-title">
     <div>
-        <h1>درخواست‌های رخصتی</h1>
-        <div class="sub">تایید یا رد درخواست‌های رخصتی قابله‌ها — تاریخ‌ها میلادی</div>
+        <h1>رخصتی‌ها</h1>
+        <div class="sub">رخصتی رسمی دفتر را مستقیم بدهید و درخواست‌های قابله‌ها را تایید یا رد کنید — تاریخ‌ها میلادی</div>
     </div>
+</div>
+
+<div class="card gold-top">
+    <h2>رخصتی رسمی دفتر — دادن رخصتی مستقیم</h2>
+    <form method="POST" action="{{ route('admin.leaves.manual') }}">
+        @csrf
+        <div class="form-grid">
+            <div>
+                <label class="field-label">نوع رخصتی *</label>
+                <select class="form-control" name="scope" id="leave-scope">
+                    <option value="single" {{ old('scope') === 'single' ? 'selected' : '' }}>برای یک قابله</option>
+                    <option value="all" {{ old('scope') === 'all' ? 'selected' : '' }}>برای همه قابله‌ها (رخصتی عمومی)</option>
+                </select>
+            </div>
+            <div id="leave-midwife-wrap">
+                <label class="field-label">قابله *</label>
+                <select class="form-control" name="midwife_id">
+                    <option value="">— انتخاب قابله —</option>
+                    @foreach($midwives as $m)
+                        <option value="{{ $m->id }}" {{ (string) old('midwife_id') === (string) $m->id ? 'selected' : '' }}>
+                            {{ \App\Support\DariDate::en($m->code) }} — {{ $m->full_name }}{{ $m->cluster ? ' ('.\App\Support\DariDate::en($m->cluster->code).')' : '' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="field-label">از تاریخ *</label>
+                <input class="form-control num" type="date" name="from_date" value="{{ old('from_date') }}" required>
+            </div>
+            <div>
+                <label class="field-label">تا تاریخ *</label>
+                <input class="form-control num" type="date" name="to_date" value="{{ old('to_date') }}" required>
+            </div>
+            <div>
+                <label class="field-label">دلیل (اختیاری)</label>
+                <input class="form-control" name="reason" value="{{ old('reason') }}" placeholder="مثلاً: رخصتی رسمی عید">
+            </div>
+        </div>
+        <div class="form-hint">رخصتی رسمی فوراً تایید می‌شود و از موجودی رخصتی شخصی قابله کم نمی‌شود.</div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">ثبت رخصتی رسمی</button>
+        </div>
+    </form>
+    <script>
+        (function () {
+            var scope = document.getElementById('leave-scope');
+            var wrap = document.getElementById('leave-midwife-wrap');
+            function sync() { wrap.style.display = scope.value === 'all' ? 'none' : ''; }
+            scope.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
 </div>
 
 <div class="pill-tabs">
@@ -28,6 +80,7 @@
                 <th>تا تاریخ</th>
                 <th>روزها</th>
                 <th>دلیل</th>
+                <th>نوع</th>
                 <th>وضعیت</th>
                 <th>عملیات</th>
             </tr>
@@ -43,6 +96,13 @@
                     <td class="num">{{ \App\Support\DariDate::dayMonthYear($leave->to_date) }}</td>
                     <td class="num">{{ \App\Support\DariDate::en($leave->durationDays()) }}</td>
                     <td class="small">{{ $leave->reason }}</td>
+                    <td>
+                        @if($leave->source === 'office')
+                            <span class="chip chip-green">رسمی دفتر</span>
+                        @else
+                            <span class="chip chip-grey">درخواستی قابله</span>
+                        @endif
+                    </td>
                     <td>
                         @if($leave->status === 'pending')
                             <span class="chip chip-amber">در انتظار</span>
@@ -67,10 +127,15 @@
                         @else
                             <span class="muted small">{{ $leave->review_note ?? '—' }}</span>
                         @endif
+                        <form method="POST" action="{{ route('admin.leaves.delete', $leave->id) }}" class="inline-form">
+                            @csrf
+                            <button type="submit" class="btn btn-danger btn-sm"
+                                    onclick="return confirm('این رخصتی حذف شود؟');">حذف</button>
+                        </form>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="8" class="muted text-center">درخواستی یافت نشد.</td></tr>
+                <tr><td colspan="9" class="muted text-center">درخواستی یافت نشد.</td></tr>
             @endforelse
             </tbody>
         </table>

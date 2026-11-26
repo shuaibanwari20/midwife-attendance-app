@@ -41,8 +41,11 @@ class WeekController extends Controller
             $isFriday = $d->isFriday();
             $isFuture = $d->greaterThan($today);
             $isToday = $d->isSameDay($today);
+            // Days before the account existed are not workdays for her:
+            // rendered muted (like future days) and never counted.
+            $beforeJoin = ! AttendanceService::hasJoinedBy($midwife, $d);
 
-            if (! $isFuture && ! $isFriday) {
+            if (! $isFuture && ! $isFriday && ! $beforeJoin) {
                 $elapsedWorkdays++;
                 if ($attendance) {
                     $attended++;
@@ -55,11 +58,12 @@ class WeekController extends Controller
                 'weekday' => DariDate::weekday($d),
                 'is_today' => $isToday,
                 'is_friday' => $isFriday,
-                'is_future' => $isFuture,
+                'is_future' => $isFuture || $beforeJoin,
+                'before_join' => $beforeJoin,
                 'attended' => (bool) $attendance,
                 'status' => $attendance
                     ? $attendance->status
-                    : ($isFuture ? 'future' : ($isFriday ? 'friday' : 'absent')),
+                    : ($beforeJoin ? 'before_join' : ($isFuture ? 'future' : ($isFriday ? 'friday' : 'absent'))),
             ];
         }
 

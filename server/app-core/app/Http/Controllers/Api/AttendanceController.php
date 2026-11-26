@@ -97,6 +97,16 @@ class AttendanceController extends Controller
             ]);
         }
 
+        // 4b) Work-hours lock — after the day's end time (set by the admin)
+        // check-in is closed: the day is over and she is absent for it.
+        if ($now->greaterThan(AttendanceService::workEnd())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ساعت کاری امروز تمام شده است — ثبت حضور قفل است.',
+                'error_code' => 'checkin_locked',
+            ], 422);
+        }
+
         // 5) Status from server time
         $status = AttendanceService::statusFor($now);
 

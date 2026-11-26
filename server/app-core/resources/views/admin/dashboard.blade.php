@@ -87,6 +87,8 @@
                             <span class="chip chip-grey">روز رخصتی (جمعه)</span>
                         @elseif($row['state'] === 'not_arrived')
                             <span class="chip chip-red"><span class="dot" style="background:#D9534F"></span>هنوز نرسیده</span>
+                        @elseif($row['state'] === 'before_join')
+                            <span class="chip chip-grey"><span class="dot" style="background:#9AA8AB"></span>تازه ثبت شده</span>
                         @else
                             <span class="chip chip-red"><span class="dot" style="background:#D9534F"></span>غایب</span>
                         @endif

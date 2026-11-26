@@ -6,14 +6,18 @@ use App\Models\Attendance;
 use App\Models\Cluster;
 use App\Models\Leave;
 use App\Models\Midwife;
+use App\Models\Setting;
 use Carbon\Carbon;
 
 /**
  * Central attendance rules. Server time is always Asia/Kabul.
- *  - Arrival <= 08:00            => on_time   (حاضر به‌وقت)
- *  - Arrival  08:01 .. 08:30     => late      (دیرکرد) with minutes
- *  - After 08:30                 => still recordable as late
+ *  - Arrival <= work_start       => on_time   (حاضر به‌وقت)
+ *  - Arrival  work_start..work_end => late    (دیرکرد) with minutes
+ *  - After work_end              => check-in LOCKED — the day is over
  *  - One check-in per day
+ *
+ * work_start / work_end are set by the admin in the panel settings
+ * (settings table); config/midwife.php only holds the defaults.
  */
 class AttendanceService
 {
@@ -29,12 +33,25 @@ class AttendanceService
 
     public static function workStart(): Carbon
     {
-        return Carbon::parse(config('midwife.work_start', '08:00'), self::timezone());
+        return Carbon::parse(
+            Setting::get('work_start', config('midwife.work_start', '08:00')),
+            self::timezone()
+        );
     }
 
+    /** End of the working day: check-in locks after this time. */
+    public static function workEnd(): Carbon
+    {
+        return Carbon::parse(
+            Setting::get('work_end', config('midwife.work_end', config('midwife.late_until', '08:30'))),
+            self::timezone()
+        );
+    }
+
+    /** Alias of workEnd() — the late window ends when the day ends. */
     public static function lateUntil(): Carbon
     {
-        return Carbon::parse(config('midwife.late_until', '08:30'), self::timezone());
+        return self::workEnd();
     }
 
     /**
@@ -80,8 +97,40 @@ class AttendanceService
     }
 
     /**
+     * First day the midwife is obligated to attend: her registration day
+     * (Asia/Kabul). If the account was created after the day's cutoff,
+     * attendance starts the NEXT day — she cannot be absent for a day that
+     * was already over when her account was made. Days before this date
+     * are never counted as absent (the account did not exist yet).
+     *
+     * The cutoff is anchored to the DEFAULT late window in config
+     * (08:30), NOT the admin-set work_end: a midwife's start date must
+     * never move retroactively when the admin later changes the hours.
+     */
+    public static function firstObligatedDay(Midwife $midwife): Carbon
+    {
+        $created = $midwife->created_at->copy()->setTimezone(self::timezone());
+        $day = $created->copy()->startOfDay();
+
+        $cutoff = Carbon::parse(config('midwife.late_until', '08:30'), self::timezone())
+            ->setDate((int) $created->year, (int) $created->month, (int) $created->day);
+
+        if ($created->greaterThan($cutoff)) {
+            $day->addDay();
+        }
+
+        return $day;
+    }
+
+    /** Has the midwife's attendance obligation started by the given day? */
+    public static function hasJoinedBy(Midwife $midwife, Carbon $day): bool
+    {
+        return $day->copy()->startOfDay()->greaterThanOrEqualTo(self::firstObligatedDay($midwife));
+    }
+
+    /**
      * Day status for history rendering:
-     * on_time | late | absent | leave | friday | future
+     * on_time | late | absent | leave | friday | future | before_join
      */
     public static function dayStatus(Midwife $midwife, Carbon $day, ?Attendance $attendance): string
     {
@@ -91,7 +140,10 @@ class AttendanceService
             return 'future';
         }
         if ($attendance) {
-            return $attendance->status; // on_time | late
+            return $attendance->status; // on_time | late — a real record always wins
+        }
+        if (! self::hasJoinedBy($midwife, $day)) {
+            return 'before_join';
         }
         if ($day->isFriday()) {
             return 'friday';

@@ -40,18 +40,28 @@
 </div>
 
 <div class="card">
-    <h2>قوانین ثبت حضور (وقت کابل — Asia/Kabul)</h2>
+    <h2>ساعات کاری (وقت کابل — Asia/Kabul)</h2>
+    <form method="POST" action="{{ route('admin.settings.rules') }}">
+        @csrf
+        <div class="form-grid">
+            <div>
+                <label class="field-label">شروع ساعت کاری *</label>
+                <input class="form-control num" type="time" name="work_start" value="{{ old('work_start', $workStart) }}" required>
+                <div class="form-hint">تا این ساعت: <span class="chip chip-green">حاضر به‌وقت</span></div>
+            </div>
+            <div>
+                <label class="field-label">ختم ساعت کاری *</label>
+                <input class="form-control num" type="time" name="work_end" value="{{ old('work_end', $workEnd) }}" required>
+                <div class="form-hint">بین شروع و ختم: <span class="chip chip-amber">دیرکرد</span> — بعد از ختم، ثبت حضور <strong>قفل</strong> می‌شود و روز تمام است</div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">ذخیره ساعات کاری</button>
+        </div>
+    </form>
     <div class="table-wrap">
         <table class="data">
             <tbody>
-            <tr>
-                <td style="font-weight: 700;">شروع ساعت کاری</td>
-                <td class="num">{{ \App\Support\DariDate::en($workStart) }} صبح — تا این ساعت: <span class="chip chip-green">حاضر به‌وقت</span></td>
-            </tr>
-            <tr>
-                <td style="font-weight: 700;">پنجره تاخیر</td>
-                <td class="num">تا {{ \App\Support\DariDate::en($lateUntil) }} صبح — <span class="chip chip-amber">دیرکرد</span> (بعد از آن نیز با عنوان دیرکرد ثبت می‌شود)</td>
-            </tr>
             <tr>
                 <td style="font-weight: 700;">حداکثر دقت GPS</td>
                 <td class="num">{{ \App\Support\DariDate::en($maxAccuracy) }} متر (بدون دقت کافی ثبت حضور ممکن نیست)</td>

@@ -25,8 +25,9 @@ class ServerTimeController extends Controller
                 'time' => DariDate::time24($now),
                 'time_display' => DariDate::time($now),
                 'weekday' => DariDate::weekday($now),
-                'work_start' => config('midwife.work_start', '08:00'),
-                'late_until' => config('midwife.late_until', '08:30'),
+                'work_start' => AttendanceService::workStart()->format('H:i'),
+                'work_end' => AttendanceService::workEnd()->format('H:i'),
+                'late_until' => AttendanceService::workEnd()->format('H:i'),
             ],
         ]);
     }

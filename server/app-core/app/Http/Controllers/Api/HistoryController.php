@@ -65,6 +65,13 @@ class HistoryController extends Controller
             $attendance = $attendances->get($key);
             $status = AttendanceService::dayStatus($midwife, $cursor, $attendance);
 
+            // Days before the account existed are not part of her record at
+            // all — no list entry, no absent count.
+            if ($status === 'before_join') {
+                $cursor->addDay();
+                continue;
+            }
+
             if ($status === 'on_time') {
                 $onTime++;
             } elseif ($status === 'late') {

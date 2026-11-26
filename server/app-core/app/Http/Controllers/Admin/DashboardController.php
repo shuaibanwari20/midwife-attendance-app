@@ -35,7 +35,7 @@ class DashboardController extends Controller
             ->all();
 
         $rows = [];
-        $counts = ['on_time' => 0, 'late' => 0, 'absent' => 0, 'leave' => 0, 'friday' => 0, 'before_join' => 0];
+        $counts = ['on_time' => 0, 'late' => 0, 'absent' => 0, 'leave' => 0, 'friday' => 0, 'before_join' => 0, 'not_arrived' => 0];
 
         $midwives = Midwife::with('cluster')->orderBy('code')->get();
 
@@ -74,7 +74,9 @@ class DashboardController extends Controller
                 $label = 'هنوز نرسیده';
             }
 
-            $counts[$state === 'not_arrived' ? 'absent' : $state] = ($counts[$state === 'not_arrived' ? 'absent' : $state] ?? 0) + 1;
+            // 'not_arrived' keeps its OWN bucket — she is counted absent
+            // only after work_end passes without a check-in (his rule).
+            $counts[$state] = ($counts[$state] ?? 0) + 1;
 
             $rows[] = [
                 'midwife' => $midwife,

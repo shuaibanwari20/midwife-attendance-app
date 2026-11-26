@@ -45,7 +45,13 @@ class WeekController extends Controller
             // rendered muted (like future days) and never counted.
             $beforeJoin = ! AttendanceService::hasJoinedBy($midwife, $d);
 
-            if (! $isFuture && ! $isFriday && ! $beforeJoin) {
+            // Today is only decided once the check-in window closes
+            // (work_end): until then she is 'pending', not absent, and
+            // today does not count as an elapsed workday yet.
+            $isPending = $isToday && ! $attendance && ! $isFriday && ! $beforeJoin
+                && $now->lessThanOrEqualTo(AttendanceService::workEnd());
+
+            if (! $isFuture && ! $isFriday && ! $beforeJoin && ! $isPending) {
                 $elapsedWorkdays++;
                 if ($attendance) {
                     $attended++;
@@ -63,7 +69,7 @@ class WeekController extends Controller
                 'attended' => (bool) $attendance,
                 'status' => $attendance
                     ? $attendance->status
-                    : ($beforeJoin ? 'before_join' : ($isFuture ? 'future' : ($isFriday ? 'friday' : 'absent'))),
+                    : ($beforeJoin ? 'before_join' : ($isFuture ? 'future' : ($isFriday ? 'friday' : ($isPending ? 'pending' : 'absent')))),
             ];
         }
 

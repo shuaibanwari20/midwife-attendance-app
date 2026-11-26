@@ -130,7 +130,11 @@ class AttendanceService
 
     /**
      * Day status for history rendering:
-     * on_time | late | absent | leave | friday | future | before_join
+     * on_time | late | absent | leave | friday | future | before_join | pending
+     *
+     * His rule (2026-11-27): a midwife is counted ABSENT only when the whole
+     * check-in window has closed — for today, while now <= work_end she is
+     * 'pending' (هنوز نرسیده), never absent. Past days are final.
      */
     public static function dayStatus(Midwife $midwife, Carbon $day, ?Attendance $attendance): string
     {
@@ -150,6 +154,9 @@ class AttendanceService
         }
         if (self::isOnApprovedLeave($midwife, $day)) {
             return 'leave';
+        }
+        if ($day->isSameDay($today) && self::now()->lessThanOrEqualTo(self::workEnd())) {
+            return 'pending';
         }
 
         return 'absent';

@@ -96,6 +96,8 @@ class HistoryController extends Controller
                     'leave' => 'رخصتی',
                     'friday' => 'روز رخصتی (جمعه)',
                     'future' => 'آینده',
+                    'pending' => 'هنوز نرسیده',
+                    default => '—',
                 },
                 'check_in_time' => $attendance ? DariDate::time24($attendance->checked_at_server) : null,
                 'check_in_display' => $attendance ? DariDate::time($attendance->checked_at_server) : null,

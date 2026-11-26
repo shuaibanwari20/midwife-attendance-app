@@ -44,9 +44,15 @@ class MapController extends Controller
                 } elseif (in_array($midwife->id, $leaveIds, true)) {
                     $state = 'leave';
                     $label = 'رخصتی';
-                } else {
+                } elseif (AttendanceService::now()->isFriday()) {
+                    $state = 'friday';
+                    $label = 'روز رخصتی (جمعه)';
+                } elseif (AttendanceService::now()->greaterThan(AttendanceService::workEnd())) {
                     $state = 'absent';
-                    $label = 'بدون ثبت';
+                    $label = 'غایب';
+                } else {
+                    $state = 'not_arrived';
+                    $label = 'هنوز نرسیده';
                 }
                 $statuses[] = [
                     'name' => $midwife->full_name,

@@ -62,7 +62,7 @@
     }
 
     function stateColor(state) {
-        return state === 'on_time' ? '#2FA36B' : state === 'late' ? '#D69E2E' : state === 'leave' ? '#9AA8AB' : state === 'before_join' ? '#9AA8AB' : '#D9534F';
+        return state === 'on_time' ? '#2FA36B' : state === 'late' ? '#D69E2E' : state === 'not_arrived' ? '#D69E2E' : state === 'leave' ? '#9AA8AB' : state === 'before_join' ? '#9AA8AB' : state === 'friday' ? '#9AA8AB' : '#D9534F';
     }
 
     function loadData() {

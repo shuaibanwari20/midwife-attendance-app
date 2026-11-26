@@ -37,7 +37,12 @@
     <div class="stat-card stat-red">
         <div class="icon-circle">✕</div>
         <div class="value">{{ \App\Support\DariDate::en($counts['absent']) }}</div>
-        <div class="label">{{ \App\Support\PanelText::t('غایب / هنوز نرسیده') }}</div>
+        <div class="label">{{ \App\Support\PanelText::t('غایب') }}</div>
+    </div>
+    <div class="stat-card stat-amber">
+        <div class="icon-circle">⏳</div>
+        <div class="value">{{ \App\Support\DariDate::en($counts['not_arrived'] ?? 0) }}</div>
+        <div class="label">{{ \App\Support\PanelText::t('هنوز نرسیده') }}</div>
     </div>
     <div class="stat-card stat-grey">
         <div class="icon-circle">🌴</div>

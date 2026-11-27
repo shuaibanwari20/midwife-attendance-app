@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\NotificationAdminController;
 use App\Http\Controllers\Admin\ProblemAdminController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\WorkReportAdminController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/admin');
@@ -41,6 +42,13 @@ Route::prefix('admin')->group(function () {
         Route::get('/map/data', [MapController::class, 'data'])->name('admin.map.data');
 
         Route::get('/surveys', [SurveyAdminController::class, 'index'])->name('admin.surveys');
+        Route::get('/work-reports', [WorkReportAdminController::class, 'index'])->name('admin.workReports');
+        Route::get('/work-reports/export', [WorkReportAdminController::class, 'export'])->name('admin.workReports.export');
+        Route::get('/work-reports/print', [WorkReportAdminController::class, 'print'])->name('admin.workReports.print');
+        Route::get('/work-reports/{id}', [WorkReportAdminController::class, 'show'])->name('admin.workReports.show');
+        Route::get('/work-reports/{id}/photo', [WorkReportAdminController::class, 'photo'])->name('admin.workReports.photo');
+        Route::post('/work-reports/{id}/approve', [WorkReportAdminController::class, 'approve'])->name('admin.workReports.approve');
+        Route::post('/work-reports/{id}/return', [WorkReportAdminController::class, 'returnBack'])->name('admin.workReports.return');
         Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports');
         Route::get('/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
         Route::get('/reports/monthly-print', [ReportController::class, 'monthlyPrint'])->name('admin.reports.monthlyPrint');

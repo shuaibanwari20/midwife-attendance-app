@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ServerTimeController;
 use App\Http\Controllers\Api\SurveyController;
 use App\Http\Controllers\Api\SyncController;
+use App\Http\Controllers\Api\WorkReportController;
 use App\Http\Controllers\Api\WeekController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/problem-reports', [ProblemReportController::class, 'store']);
     Route::get('/survey', [SurveyController::class, 'current']);
     Route::post('/survey', [SurveyController::class, 'respond']);
+    Route::get('/work-reports/months', [WorkReportController::class, 'months']);
+    Route::get('/work-reports/current', [WorkReportController::class, 'current']);
+    Route::post('/work-reports', [WorkReportController::class, 'saveDraft']);
+    Route::post('/work-reports/submit', [WorkReportController::class, 'submit']);
+    Route::post('/work-reports/photo', [WorkReportController::class, 'photo']);
+    Route::get('/work-reports/daily', [WorkReportController::class, 'daily']);
+    Route::post('/work-reports/daily', [WorkReportController::class, 'saveDaily']);
     Route::post('/sync', [SyncController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });

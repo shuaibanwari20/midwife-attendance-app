@@ -63,6 +63,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5V3h6v1.5M9 12h6M9 16h4"/></svg>
                 <span>{{ \App\Support\PanelText::t('نظرسنجی ماهانه') }}</span>
             </a>
+            <a href="{{ route('admin.workReports') }}" class="side-link {{ request()->routeIs('admin.workReports*') ? 'active' : '' }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h9L19 7.5v13H6z"/><path d="M14.5 3.5v4.5H19M9 13.5l2 2 3.5-4"/></svg>
+                <span>{{ \App\Support\PanelText::t('راپور ماهانهٔ کاری') }}</span>
+            </a>
 
             <div class="side-group">{{ \App\Support\PanelText::t('سیستم') }}</div>
             <a href="{{ route('admin.notifications.index') }}" class="side-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">

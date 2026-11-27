@@ -9,8 +9,34 @@ class MonthlyWorkReport extends Model
 {
     protected $fillable = [
         'midwife_id', 'month', 'status', 'payload', 'totals',
-        'supervisor_note', 'register_photo', 'submitted_at', 'reviewed_at', 'reviewed_by',
+        'supervisor_note', 'register_photo', 'photo_opv', 'photo_opd', 'photo_fp',
+        'submitted_at', 'reviewed_at', 'reviewed_by',
     ];
+
+    /** Photo-only reports (his order 2026-11-27): one photo per report kind. */
+    public const PHOTO_KINDS = ['opv', 'opd', 'fp'];
+
+    public const PHOTO_LABELS = [
+        'opv' => 'راپور OPV (واکسیناسیون)',
+        'opd' => 'راپور OPD (مراجعین)',
+        'fp' => 'راپور تنظیم خانواده',
+    ];
+
+    public function photoPath(string $kind): ?string
+    {
+        return $this->{'photo_' . $kind};
+    }
+
+    public function hasAllPhotos(): bool
+    {
+        foreach (self::PHOTO_KINDS as $kind) {
+            if (!$this->photoPath($kind)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     protected $casts = [
         'payload' => 'array',

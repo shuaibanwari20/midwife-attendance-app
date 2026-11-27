@@ -5,9 +5,6 @@
 @section('content')
 @php
     $chipFor = ['approved' => 'chip-green', 'submitted' => 'chip-amber', 'returned' => 'chip-red', 'draft' => 'chip-teal'];
-    $p = $report->payload ?? [];
-    $t = $report->totals ?? [];
-    $val = fn ($k) => \App\Support\DariDate::en((string) (int) ($p[$k] ?? 0));
 @endphp
 <div class="page-title">
     <div>
@@ -25,81 +22,21 @@
     </div>
 </div>
 
-@if(!empty($warnings))
-<div class="alert alert-err" style="margin-bottom: 14px;">
-    {{ \App\Support\PanelText::t('هشدارهای سازگاری ارقام:') }}
-    <ul>
-        @foreach($warnings as $w)
-            <li>{{ $w }}</li>
-        @endforeach
-    </ul>
-</div>
-@endif
-
-<div class="stats-row">
-    <div class="stat-card stat-teal">
-        <div class="icon-circle">💉</div>
-        <div class="value num">{{ \App\Support\DariDate::en($t['vacc_doses'] ?? 0) }}</div>
-        <div class="label">{{ \App\Support\PanelText::t('مجموع دوز واکسین') }}</div>
-    </div>
-    <div class="stat-card stat-teal">
-        <div class="icon-circle">🩺</div>
-        <div class="value num">{{ \App\Support\DariDate::en($t['opd_total'] ?? 0) }}</div>
-        <div class="label">{{ \App\Support\PanelText::t('مجموع مراجعین OPD') }}</div>
-    </div>
-    <div class="stat-card stat-amber">
-        <div class="icon-circle">%</div>
-        <div class="value num">{{ isset($t['opv_dropout_pct']) && $t['opv_dropout_pct'] !== null ? \App\Support\DariDate::en((string) $t['opv_dropout_pct']) : '—' }}</div>
-        <div class="label">{{ \App\Support\PanelText::t('ریزش OPV1 تا OPV3') }}</div>
-    </div>
-    <div class="stat-card stat-teal">
-        <div class="icon-circle">👨‍👩‍👧</div>
-        <div class="value num">{{ \App\Support\DariDate::en(($t['fp_new'] ?? 0) + ($t['fp_revisit'] ?? 0)) }}</div>
-        <div class="label">{{ \App\Support\PanelText::t('مراجعین تنظیم خانواده') }}</div>
-    </div>
-</div>
-
-@foreach($sections as $section)
+@foreach($photoKinds as $kind)
 <div class="card">
-    <h2>{{ \App\Support\PanelText::t($section['label']) }}</h2>
-    <div class="table-wrap">
-        <table class="data">
-            <tbody>
-            @foreach($section['fields'] as $key => $label)
-                <tr>
-                    <td style="font-weight: 600; width: 55%;">{{ \App\Support\PanelText::t($label) }}</td>
-                    <td class="num">{{ $val($key) }}</td>
-                </tr>
-            @endforeach
-            @if($section['label'] === 'موجودی و مصرف')
-                @foreach(\App\Models\MonthlyWorkReport::STOCK_ITEMS as $item)
-                    <tr>
-                        <td style="font-weight: 700;">{{ \App\Support\PanelText::t('باقی‌ماندهٔ پایان ماه') }} — {{ $item }}</td>
-                        <td class="num">{{ \App\Support\DariDate::en((string) (int) (($t['stock_closing'][$item] ?? 0))) }}</td>
-                    </tr>
-                @endforeach
-            @endif
-            </tbody>
-        </table>
-    </div>
+    <h2>{{ \App\Support\PanelText::t($photoLabels[$kind]) }}</h2>
+    @if($report->photoPath($kind))
+        <a href="{{ route('admin.workReports.photo', [$report->id, $kind]) }}" target="_blank">
+            <img src="{{ route('admin.workReports.photo', [$report->id, $kind]) }}" alt="{{ $kind }}" style="max-width: 520px; width: 100%; border-radius: 10px; border: 1px solid #ddd;">
+        </a>
+        <div style="margin-top: 8px;">
+            <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.photo', [$report->id, $kind]) }}" target="_blank">{{ \App\Support\PanelText::t('بازکردن عکس کامل') }}</a>
+        </div>
+    @else
+        <p style="color: #b3261e; font-weight: 700;">{{ \App\Support\PanelText::t('این عکس هنوز فرستاده نشده است.') }}</p>
+    @endif
 </div>
 @endforeach
-
-@if(!empty($p['problems']))
-<div class="card">
-    <h2>{{ \App\Support\PanelText::t('مشکلات و نیازمندی‌ها') }}</h2>
-    <p style="white-space: pre-wrap;">{{ $p['problems'] }}</p>
-</div>
-@endif
-
-@if($report->register_photo)
-<div class="card">
-    <h2>{{ \App\Support\PanelText::t('عکس رجیستر کاغذی') }}</h2>
-    <a href="{{ route('admin.workReports.photo', $report->id) }}" target="_blank">
-        <img src="{{ route('admin.workReports.photo', $report->id) }}" alt="register" style="max-width: 420px; width: 100%; border-radius: 10px; border: 1px solid #ddd;">
-    </a>
-</div>
-@endif
 
 @if($report->status === 'submitted')
 <div class="card">

@@ -24,7 +24,7 @@ class WorkReportAdminController extends Controller
             : AttendanceService::now()->format('Y-m');
     }
 
-    /** Monthly work reports: status board + approved aggregates. */
+    /** Monthly work reports: status board (photo-based reports). */
     public function index(Request $request): View
     {
         $month = $this->monthOf($request);
@@ -36,17 +36,9 @@ class WorkReportAdminController extends Controller
             ->keyBy('midwife_id');
 
         $counts = ['missing' => 0, 'draft' => 0, 'submitted' => 0, 'returned' => 0, 'approved' => 0];
-        $agg = ['vacc_doses' => 0, 'opd_total' => 0, 'fp_clients' => 0, 'deliveries' => 0];
         foreach ($midwives as $mw) {
-            $report = $reports->get($mw->id);
-            $status = $report?->status ?? 'missing';
+            $status = $reports->get($mw->id)?->status ?? 'missing';
             $counts[$status] = ($counts[$status] ?? 0) + 1;
-            if ($status === 'approved') {
-                $agg['vacc_doses'] += (int) ($report->totals['vacc_doses'] ?? 0);
-                $agg['opd_total'] += (int) ($report->totals['opd_total'] ?? 0);
-                $agg['fp_clients'] += (int) ($report->totals['fp_new'] ?? 0) + (int) ($report->totals['fp_revisit'] ?? 0);
-                $agg['deliveries'] += (int) ($report->payload['deliveries'] ?? 0);
-            }
         }
 
         return view('admin.work-reports', [
@@ -55,11 +47,10 @@ class WorkReportAdminController extends Controller
             'midwives' => $midwives,
             'reports' => $reports,
             'counts' => $counts,
-            'agg' => $agg,
         ]);
     }
 
-    /** One report in full: every section, warnings, photo, review actions. */
+    /** One report: the three report photos + review actions. */
     public function show(int $id): View
     {
         $report = MonthlyWorkReport::with('midwife.cluster')->findOrFail($id);
@@ -68,20 +59,24 @@ class WorkReportAdminController extends Controller
         return view('admin.work-report-show', [
             'report' => $report,
             'monthDate' => $monthDate,
-            'sections' => MonthlyWorkReport::SECTIONS,
-            'warnings' => MonthlyWorkReport::warnings($report->payload ?? []),
+            'photoKinds' => MonthlyWorkReport::PHOTO_KINDS,
+            'photoLabels' => MonthlyWorkReport::PHOTO_LABELS,
         ]);
     }
 
-    /** Stream the register photo (stored on the local disk). */
-    public function photo(int $id)
+    /** Stream one report photo (kind = opv | opd | fp), stored on the local disk. */
+    public function photo(int $id, string $kind)
     {
+        if (!in_array($kind, MonthlyWorkReport::PHOTO_KINDS, true)) {
+            abort(404);
+        }
         $report = MonthlyWorkReport::findOrFail($id);
-        if (!$report->register_photo || !Storage::disk('local')->exists($report->register_photo)) {
+        $path = $report->photoPath($kind);
+        if (!$path || !Storage::disk('local')->exists($path)) {
             abort(404);
         }
 
-        return response()->file(Storage::disk('local')->path($report->register_photo));
+        return response()->file(Storage::disk('local')->path($path));
     }
 
     public function approve(Request $request, int $id)
@@ -123,7 +118,7 @@ class WorkReportAdminController extends Controller
             ->with('ok', 'راپور برای اصلاح به قابله برگشت داده شد.');
     }
 
-    /** Excel/CSV: one row per midwife with the key figures of the month. */
+    /** Excel/CSV: one row per midwife with the report status of the month. */
     public function export(Request $request)
     {
         $month = $this->monthOf($request);
@@ -131,34 +126,25 @@ class WorkReportAdminController extends Controller
         $reports = MonthlyWorkReport::where('month', $month)->get()->keyBy('midwife_id');
 
         $headers = [
-            'کد قابله', 'نام قابله', 'کلستر', 'وضعیت راپور', 'روزهای کاری',
-            'مجموع مراجعین OPD', 'مجموع دوز واکسین', 'OPV1', 'OPV3',
-            'اطفال کاملاً واکسین‌شده', 'تنظیم خانواده — جدید', 'تنظیم خانواده — تکراری',
-            'مراقبت حاملگی (اول)', 'ولادت‌های کمک‌شده', 'ارجاع‌ها',
+            'کد قابله', 'نام قابله', 'کلستر', 'وضعیت راپور',
+            'عکس OPV', 'عکس OPD', 'عکس تنظیم خانواده',
+            'تاریخ ارسال', 'تاریخ بررسی',
         ];
 
         $body = [];
         foreach ($midwives as $mw) {
             $r = $reports->get($mw->id);
-            $p = $r?->payload ?? [];
-            $t = $r?->totals ?? [];
-            $v = fn (string $k) => DariDate::en((string) (int) ($p[$k] ?? 0));
+            $yn = fn (?string $p) => $p ? 'بلی' : 'نخیر';
             $body[] = [
                 DariDate::en($mw->code ?? ''),
                 $mw->full_name ?? '',
                 $mw->cluster ? $mw->cluster->displayLabel() : '',
                 $r ? (MonthlyWorkReport::STATUS_LABELS[$r->status] ?? $r->status) : 'نرسیده',
-                $v('working_days'),
-                DariDate::en((string) (int) ($t['opd_total'] ?? 0)),
-                DariDate::en((string) (int) ($t['vacc_doses'] ?? 0)),
-                $v('opv1'),
-                $v('opv3'),
-                $v('fully_immunized'),
-                DariDate::en((string) (int) ($t['fp_new'] ?? 0)),
-                DariDate::en((string) (int) ($t['fp_revisit'] ?? 0)),
-                $v('anc1'),
-                $v('deliveries'),
-                $v('referrals'),
+                $yn($r?->photo_opv),
+                $yn($r?->photo_opd),
+                $yn($r?->photo_fp),
+                $r?->submitted_at ? DariDate::en($r->submitted_at->format('Y-m-d H:i')) : '',
+                $r?->reviewed_at ? DariDate::en($r->reviewed_at->format('Y-m-d H:i')) : '',
             ];
         }
 
@@ -184,39 +170,27 @@ class WorkReportAdminController extends Controller
         ]);
     }
 
-    /** Printable consolidated report: approved reports summed per section. */
+    /** Printable status report of the month: every midwife + counts + signatures. */
     public function print(Request $request): View
     {
         $month = $this->monthOf($request);
         $monthDate = Carbon::createFromFormat('Y-m-d', $month . '-01', 'Asia/Kabul');
 
-        $approved = MonthlyWorkReport::with('midwife.cluster')
-            ->where('month', $month)
-            ->where('status', 'approved')
-            ->get();
+        $midwives = Midwife::with('cluster')->orderBy('code')->get();
+        $reports = MonthlyWorkReport::where('month', $month)->get()->keyBy('midwife_id');
 
-        $sums = [];
-        foreach (MonthlyWorkReport::numericKeys() as $key) {
-            $sums[$key] = 0;
+        $counts = ['missing' => 0, 'draft' => 0, 'submitted' => 0, 'returned' => 0, 'approved' => 0];
+        foreach ($midwives as $mw) {
+            $status = $reports->get($mw->id)?->status ?? 'missing';
+            $counts[$status] = ($counts[$status] ?? 0) + 1;
         }
-        foreach ($approved as $r) {
-            foreach ((array) $r->payload as $key => $value) {
-                if (isset($sums[$key]) && is_numeric($value)) {
-                    $sums[$key] += (int) $value;
-                }
-            }
-        }
-
-        $totals = MonthlyWorkReport::computeTotals($sums);
 
         return view('admin.work-reports-print', [
             'month' => $month,
             'monthDate' => $monthDate,
-            'approved' => $approved,
-            'sections' => MonthlyWorkReport::SECTIONS,
-            'sums' => $sums,
-            'totals' => $totals,
-            'totalMidwives' => Midwife::count(),
+            'midwives' => $midwives,
+            'reports' => $reports,
+            'counts' => $counts,
             'generatedAt' => AttendanceService::now(),
         ]);
     }

@@ -15,7 +15,7 @@
         <input class="form-control num" type="month" name="month" value="{{ $month }}" style="max-width: 190px;">
         <button type="submit" class="btn btn-primary btn-sm">{{ \App\Support\PanelText::t('نمایش') }}</button>
         <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.export', ['month' => $month]) }}">{{ \App\Support\PanelText::t('خروجی Excel') }}</a>
-        <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.print', ['month' => $month]) }}" target="_blank">{{ \App\Support\PanelText::t('چاپ راپور تجمیعی') }}</a>
+        <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.print', ['month' => $month]) }}" target="_blank">{{ \App\Support\PanelText::t('چاپ راپور وضعیت') }}</a>
     </form>
 </div>
 
@@ -42,28 +42,6 @@
     </div>
 </div>
 
-<div class="card" style="border-inline-start: 4px solid var(--teal-700, #0D5C63);">
-    <h2>{{ \App\Support\PanelText::t('مجموع ماه (فقط راپورهای تأییدشده)') }}</h2>
-    <div class="table-wrap">
-        <table class="data">
-            <tbody>
-                <tr>
-                    <td style="font-weight: 700;">{{ \App\Support\PanelText::t('مجموع دوز واکسین') }}</td>
-                    <td class="num">{{ \App\Support\DariDate::en($agg['vacc_doses']) }}</td>
-                    <td style="font-weight: 700;">{{ \App\Support\PanelText::t('مجموع مراجعین OPD') }}</td>
-                    <td class="num">{{ \App\Support\DariDate::en($agg['opd_total']) }}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: 700;">{{ \App\Support\PanelText::t('مراجعین تنظیم خانواده') }}</td>
-                    <td class="num">{{ \App\Support\DariDate::en($agg['fp_clients']) }}</td>
-                    <td style="font-weight: 700;">{{ \App\Support\PanelText::t('ولادت‌های کمک‌شده') }}</td>
-                    <td class="num">{{ \App\Support\DariDate::en($agg['deliveries']) }}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
 <div class="card">
     <h2>{{ \App\Support\PanelText::t('وضعیت هر قابله') }}</h2>
     <div class="table-wrap">
@@ -74,23 +52,22 @@
                     <th>{{ \App\Support\PanelText::t('قابله') }}</th>
                     <th>{{ \App\Support\PanelText::t('کلستر') }}</th>
                     <th>{{ \App\Support\PanelText::t('وضعیت') }}</th>
-                    <th>{{ \App\Support\PanelText::t('مراجعین OPD') }}</th>
-                    <th>{{ \App\Support\PanelText::t('دوز واکسین') }}</th>
-                    <th>{{ \App\Support\PanelText::t('تنظیم خانواده') }}</th>
+                    <th>{{ \App\Support\PanelText::t('عکس‌ها') }}</th>
                     <th>{{ \App\Support\PanelText::t('عملیات') }}</th>
                 </tr>
             </thead>
             <tbody>
             @foreach($midwives as $mw)
-                @php $r = $reports->get($mw->id); $st = $r?->status ?? 'missing'; @endphp
+                @php
+                    $r = $reports->get($mw->id); $st = $r?->status ?? 'missing';
+                    $photoCount = $r ? (int) !!$r->photo_opv + (int) !!$r->photo_opd + (int) !!$r->photo_fp : 0;
+                @endphp
                 <tr>
                     <td class="num">{{ \App\Support\DariDate::en($mw->code ?? '') }}</td>
                     <td style="font-weight: 700;">{{ $mw->full_name }}</td>
                     <td>{{ $mw->cluster ? $mw->cluster->displayLabel() : '—' }}</td>
                     <td><span class="chip {{ $chipFor[$st] ?? 'chip-grey' }}">{{ \App\Support\PanelText::t(\App\Models\MonthlyWorkReport::STATUS_LABELS[$st] ?? $st) }}</span></td>
-                    <td class="num">{{ $r ? \App\Support\DariDate::en($r->totals['opd_total'] ?? 0) : '—' }}</td>
-                    <td class="num">{{ $r ? \App\Support\DariDate::en($r->totals['vacc_doses'] ?? 0) : '—' }}</td>
-                    <td class="num">{{ $r ? \App\Support\DariDate::en(($r->totals['fp_new'] ?? 0) + ($r->totals['fp_revisit'] ?? 0)) : '—' }}</td>
+                    <td class="num">{{ $r ? \App\Support\DariDate::en($photoCount) . ' / ' . \App\Support\DariDate::en(3) : '—' }}</td>
                     <td>
                         @if($r)
                             <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.show', $r->id) }}">{{ \App\Support\PanelText::t('مشاهده') }}</a>

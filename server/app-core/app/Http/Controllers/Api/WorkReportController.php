@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MonthlyWorkReport;
-use App\Models\WorkReportDailyEntry;
 use App\Support\AttendanceService;
 use App\Support\DariDate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class WorkReportController extends Controller
@@ -26,17 +26,25 @@ class WorkReportController extends Controller
 
     private function present(MonthlyWorkReport $report): array
     {
+        $photos = [];
+        foreach (MonthlyWorkReport::PHOTO_KINDS as $kind) {
+            $photos[$kind] = $report->photoPath($kind) !== null;
+        }
+
         return [
             'month' => $report->month,
             'status' => $report->status,
-            'payload' => $report->payload ?? [],
-            'totals' => $report->totals ?? [],
+            'photos' => $photos,
             'supervisor_note' => $report->supervisor_note,
-            'has_photo' => $report->register_photo !== null,
             'submitted_at' => $report->submitted_at?->toIso8601String(),
             'reviewed_at' => $report->reviewed_at?->toIso8601String(),
             'updated_at' => $report->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function locked(MonthlyWorkReport $report): bool
+    {
+        return in_array($report->status, ['submitted', 'approved'], true);
     }
 
     /** Own reports: the last 12 months with their status (or missing). */
@@ -66,12 +74,11 @@ class WorkReportController extends Controller
         return response()->json(['success' => true, 'data' => ['items' => $items]]);
     }
 
-    /** One month: the report (if any) + the sums of its daily entries. */
+    /** One month: the report (if any) with its photo state. */
     public function current(Request $request): JsonResponse
     {
         $month = $this->monthOf($request);
-        $midwifeId = $request->user()->id;
-        $report = MonthlyWorkReport::where('midwife_id', $midwifeId)
+        $report = MonthlyWorkReport::where('midwife_id', $request->user()->id)
             ->where('month', $month)
             ->first();
 
@@ -83,106 +90,16 @@ class WorkReportController extends Controller
                 'month' => $month,
                 'month_label' => DariDate::monthYear($carbon),
                 'report' => $report ? $this->present($report) : null,
-                'daily_sums' => WorkReportDailyEntry::monthSums($midwifeId, $month),
-                'warnings' => $report && $report->payload
-                    ? MonthlyWorkReport::warnings($report->payload)
-                    : [],
             ],
         ]);
     }
 
-    /** Save (or update) the draft of a month. Locked once submitted. */
-    public function saveDraft(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'month' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
-            'payload' => ['required', 'array'],
-        ], [
-            'month.required' => 'ماه راپور مشخص نیست.',
-            'payload.required' => 'معلومات راپور خالی است.',
-        ]);
-
-        $midwifeId = $request->user()->id;
-        $report = MonthlyWorkReport::where('midwife_id', $midwifeId)
-            ->where('month', $data['month'])
-            ->first();
-
-        if ($report && in_array($report->status, ['submitted', 'approved'], true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'این راپور ارسال شده و قفل است؛ برای اصلاح باید دفتر آن را برگشت بدهد.',
-            ], 422);
-        }
-
-        $payload = MonthlyWorkReport::cleanPayload($data['payload']);
-        $report = MonthlyWorkReport::updateOrCreate(
-            ['midwife_id' => $midwifeId, 'month' => $data['month']],
-            [
-                'status' => $report?->status === 'returned' ? 'returned' : 'draft',
-                'payload' => $payload,
-                'totals' => MonthlyWorkReport::computeTotals($payload),
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'report' => $this->present($report),
-                'warnings' => MonthlyWorkReport::warnings($payload),
-            ],
-        ]);
-    }
-
-    /** Submit a saved draft to the office. */
-    public function submit(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'month' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
-        ]);
-
-        $report = MonthlyWorkReport::where('midwife_id', $request->user()->id)
-            ->where('month', $data['month'])
-            ->first();
-
-        if (!$report || empty($report->payload)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'اول راپور را ذخیره کنید، بعد ارسال کنید.',
-            ], 422);
-        }
-        if ($report->status === 'approved') {
-            return response()->json([
-                'success' => false,
-                'message' => 'این راپور قبلاً تأیید شده است.',
-            ], 422);
-        }
-        if (($report->payload['working_days'] ?? 0) < 1 && ($report->totals['opd_total'] ?? 0) < 1 && ($report->totals['vacc_doses'] ?? 0) < 1) {
-            return response()->json([
-                'success' => false,
-                'message' => 'راپور خالی است؛ حداقل روزهای کاری یا ارقام کارکرد را وارد کنید.',
-            ], 422);
-        }
-
-        $report->update([
-            'status' => 'submitted',
-            'submitted_at' => AttendanceService::now(),
-            'supervisor_note' => null,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'report' => $this->present($report->fresh()),
-                'warnings' => MonthlyWorkReport::warnings($report->payload ?? []),
-            ],
-        ]);
-    }
-
-    /** Attach a photo of the paper register / tally sheet for the month. */
+    /** Upload (or replace) one report photo: kind = opv | opd | fp. */
     public function photo(Request $request): JsonResponse
     {
         $data = $request->validate([
             'month' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+            'kind' => ['required', 'in:opv,opd,fp'],
             'photo' => ['required', 'image', 'max:8192'],
         ], [
             'photo.required' => 'عکس انتخاب نشده است.',
@@ -195,79 +112,112 @@ class WorkReportController extends Controller
             ['midwife_id' => $midwifeId, 'month' => $data['month']],
             ['status' => 'draft']
         );
-        if (in_array($report->status, ['submitted', 'approved'], true)) {
+        if ($this->locked($report)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'این راپور ارسال شده و قفل است؛ برای اصلاح باید دفتر آن را برگشت بدهد.',
+            ], 422);
+        }
+
+        $old = $report->photoPath($data['kind']);
+        $name = 'work-reports/' . $midwifeId . '/' . $data['month'] . '-' . $data['kind'] . '-' . Str::random(8) . '.jpg';
+        $request->file('photo')->storeAs(dirname($name), basename($name), 'local');
+        if ($old) {
+            Storage::disk('local')->delete($old);
+        }
+        $report->update(['photo_' . $data['kind'] => $name]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['report' => $this->present($report->fresh())],
+        ]);
+    }
+
+    /** Remove one report photo (while the report is not locked). */
+    public function deletePhoto(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'month' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+            'kind' => ['required', 'in:opv,opd,fp'],
+        ]);
+
+        $report = MonthlyWorkReport::where('midwife_id', $request->user()->id)
+            ->where('month', $data['month'])
+            ->first();
+        if (!$report) {
+            return response()->json(['success' => false, 'message' => 'راپور یافت نشد.'], 404);
+        }
+        if ($this->locked($report)) {
             return response()->json([
                 'success' => false,
                 'message' => 'این راپور ارسال شده و قفل است.',
             ], 422);
         }
 
-        $name = 'work-reports/' . $midwifeId . '/' . $data['month'] . '-' . Str::random(8) . '.jpg';
-        $request->file('photo')->storeAs(dirname($name), basename($name), 'local');
-        $report->update(['register_photo' => $name]);
+        $old = $report->photoPath($data['kind']);
+        if ($old) {
+            Storage::disk('local')->delete($old);
+        }
+        $report->update(['photo_' . $data['kind'] => null]);
 
         return response()->json([
             'success' => true,
-            'data' => ['has_photo' => true],
+            'data' => ['report' => $this->present($report->fresh())],
         ]);
     }
 
-    /** Daily quick entry: upsert one day's counters. */
-    public function saveDaily(Request $request): JsonResponse
+    /** Submit the month's three report photos to the office. */
+    public function submit(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'date' => ['required', 'date_format:Y-m-d'],
-            'payload' => ['required', 'array'],
-        ], [
-            'date.required' => 'تاریخ مشخص نیست.',
+            'month' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
         ]);
 
-        $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'Asia/Kabul');
-        if ($date->gt(AttendanceService::now()->endOfDay()) || $date->lt(AttendanceService::now()->subDays(62)->startOfDay())) {
+        $report = MonthlyWorkReport::where('midwife_id', $request->user()->id)
+            ->where('month', $data['month'])
+            ->first();
+
+        if (!$report) {
             return response()->json([
                 'success' => false,
-                'message' => 'تاریخ باید در دو ماه اخیر باشد.',
+                'message' => 'اول عکس‌های راپور را بفرستید، بعد ارسال کنید.',
+            ], 422);
+        }
+        if ($report->status === 'approved') {
+            return response()->json([
+                'success' => false,
+                'message' => 'این راپور قبلاً تأیید شده است.',
+            ], 422);
+        }
+        if ($report->status === 'submitted') {
+            return response()->json([
+                'success' => false,
+                'message' => 'این راپور قبلاً ارسال شده و در انتظار بررسی است.',
             ], 422);
         }
 
-        $clean = MonthlyWorkReport::cleanPayload($data['payload']);
-        $daily = array_intersect_key($clean, array_flip(MonthlyWorkReport::dailyKeys()));
+        $missing = [];
+        foreach (MonthlyWorkReport::PHOTO_KINDS as $kind) {
+            if (!$report->photoPath($kind)) {
+                $missing[] = MonthlyWorkReport::PHOTO_LABELS[$kind];
+            }
+        }
+        if ($missing !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عکس این راپورها هنوز فرستاده نشده: ' . implode('، ', $missing),
+            ], 422);
+        }
 
-        $entry = WorkReportDailyEntry::updateOrCreate(
-            ['midwife_id' => $request->user()->id, 'entry_date' => $data['date']],
-            ['payload' => $daily]
-        );
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'date' => $data['date'],
-                'payload' => $entry->payload ?? [],
-                'daily_sums' => WorkReportDailyEntry::monthSums($request->user()->id, $date->format('Y-m')),
-            ],
+        $report->update([
+            'status' => 'submitted',
+            'submitted_at' => AttendanceService::now(),
+            'supervisor_note' => null,
         ]);
-    }
-
-    /** Daily entries of one month + their sums. */
-    public function daily(Request $request): JsonResponse
-    {
-        $month = $this->monthOf($request);
-        $entries = WorkReportDailyEntry::where('midwife_id', $request->user()->id)
-            ->where('entry_date', 'like', $month . '%')
-            ->orderBy('entry_date')
-            ->get()
-            ->map(fn ($e) => [
-                'date' => $e->entry_date->format('Y-m-d'),
-                'payload' => $e->payload ?? [],
-            ]);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'month' => $month,
-                'entries' => $entries,
-                'daily_sums' => WorkReportDailyEntry::monthSums($request->user()->id, $month),
-            ],
+            'data' => ['report' => $this->present($report->fresh())],
         ]);
     }
 }

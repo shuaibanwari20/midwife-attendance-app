@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="utf-8">
-    <title>راپور تجمیعی ماهانهٔ کاری — {{ \App\Support\DariDate::monthYear($monthDate) }}</title>
+    <title>راپور وضعیت ماهانهٔ کاری — {{ \App\Support\DariDate::monthYear($monthDate) }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
@@ -51,8 +51,8 @@
     <div class="head">
         <div class="logo">✚</div>
         <div>
-            <h1>راپور تجمیعی ماهانهٔ کاری قابله‌ها</h1>
-            <div class="sub">واکسیناسیون و OPV · مراجعین سراپا (OPD) · تنظیم خانواده · صحت مادر و طفل — فقط راپورهای تأییدشده</div>
+            <h1>راپور وضعیت ماهانهٔ کاری قابله‌ها</h1>
+            <div class="sub">راپورهای تصویری: OPV (واکسیناسیون) · OPD (مراجعین) · تنظیم خانواده — هر کدام یک عکس جدا</div>
         </div>
         <div class="month">
             <div class="m">{{ \App\Support\DariDate::monthYear($monthDate) }}</div>
@@ -60,47 +60,39 @@
     </div>
 
     <div class="summary">
-        <div class="box"><div class="v">{{ \App\Support\DariDate::en($approved->count()) }} / {{ \App\Support\DariDate::en($totalMidwives) }}</div><div class="l">راپور تأییدشده از کل قابله‌ها</div></div>
-        <div class="box"><div class="v">{{ \App\Support\DariDate::en($totals['vacc_doses'] ?? 0) }}</div><div class="l">مجموع دوز واکسین</div></div>
-        <div class="box"><div class="v">{{ \App\Support\DariDate::en($totals['opd_total'] ?? 0) }}</div><div class="l">مجموع مراجعین OPD</div></div>
-        <div class="box"><div class="v">{{ \App\Support\DariDate::en(($totals['fp_new'] ?? 0) + ($totals['fp_revisit'] ?? 0)) }}</div><div class="l">مراجعین تنظیم خانواده</div></div>
+        <div class="box"><div class="v">{{ \App\Support\DariDate::en($counts['approved']) }}</div><div class="l">تأییدشده</div></div>
+        <div class="box"><div class="v">{{ \App\Support\DariDate::en($counts['submitted']) }}</div><div class="l">در انتظار بررسی</div></div>
+        <div class="box"><div class="v">{{ \App\Support\DariDate::en($counts['returned']) }}</div><div class="l">برگشت‌خورده</div></div>
+        <div class="box"><div class="v">{{ \App\Support\DariDate::en($counts['missing'] + $counts['draft']) }}</div><div class="l">نرسیده / پیش‌نویس</div></div>
+        <div class="box"><div class="v">{{ \App\Support\DariDate::en($midwives->count()) }}</div><div class="l">کل قابله‌ها</div></div>
     </div>
 
-    @foreach($sections as $section)
-        <h2 class="sec">{{ $section['label'] }}</h2>
-        <table>
-            <tbody>
-            @foreach($section['fields'] as $key => $label)
-                <tr>
-                    <td style="width: 60%;">{{ $label }}</td>
-                    <td class="num">{{ \App\Support\DariDate::en((string) (int) ($sums[$key] ?? 0)) }}</td>
-                </tr>
-            @endforeach
-            </tbody>
-        </table>
-    @endforeach
-
-    <h2 class="sec">خلاصه بر اساس قابله</h2>
+    <h2 class="sec">وضعیت هر قابله</h2>
     <table>
         <thead>
             <tr>
+                <th>کد</th>
                 <th>قابله</th>
                 <th>کلستر</th>
-                <th class="num">مراجعین OPD</th>
-                <th class="num">دوز واکسین</th>
-                <th class="num">تنظیم خانواده</th>
-                <th class="num">ولادت‌ها</th>
+                <th>وضعیت راپور</th>
+                <th class="num">عکس OPV</th>
+                <th class="num">عکس OPD</th>
+                <th class="num">عکس تنظیم خانواده</th>
+                <th>تاریخ ارسال</th>
             </tr>
         </thead>
         <tbody>
-        @foreach($approved as $r)
+        @foreach($midwives as $mw)
+            @php $r = $reports->get($mw->id); $st = $r?->status ?? 'missing'; $yn = fn ($p) => $p ? '✓' : '—'; @endphp
             <tr>
-                <td>{{ $r->midwife->full_name }}</td>
-                <td>{{ $r->midwife->cluster ? $r->midwife->cluster->displayLabel() : '—' }}</td>
-                <td class="num">{{ \App\Support\DariDate::en($r->totals['opd_total'] ?? 0) }}</td>
-                <td class="num">{{ \App\Support\DariDate::en($r->totals['vacc_doses'] ?? 0) }}</td>
-                <td class="num">{{ \App\Support\DariDate::en(($r->totals['fp_new'] ?? 0) + ($r->totals['fp_revisit'] ?? 0)) }}</td>
-                <td class="num">{{ \App\Support\DariDate::en((string) (int) ($r->payload['deliveries'] ?? 0)) }}</td>
+                <td class="num">{{ \App\Support\DariDate::en($mw->code ?? '') }}</td>
+                <td>{{ $mw->full_name }}</td>
+                <td>{{ $mw->cluster ? $mw->cluster->displayLabel() : '—' }}</td>
+                <td>{{ \App\Models\MonthlyWorkReport::STATUS_LABELS[$st] ?? $st }}</td>
+                <td class="num">{{ $yn($r?->photo_opv) }}</td>
+                <td class="num">{{ $yn($r?->photo_opd) }}</td>
+                <td class="num">{{ $yn($r?->photo_fp) }}</td>
+                <td class="num">{{ $r?->submitted_at ? \App\Support\DariDate::en($r->submitted_at->format('Y-m-d')) : '—' }}</td>
             </tr>
         @endforeach
         </tbody>

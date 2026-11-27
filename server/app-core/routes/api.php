@@ -37,11 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/survey', [SurveyController::class, 'respond']);
     Route::get('/work-reports/months', [WorkReportController::class, 'months']);
     Route::get('/work-reports/current', [WorkReportController::class, 'current']);
-    Route::post('/work-reports', [WorkReportController::class, 'saveDraft']);
     Route::post('/work-reports/submit', [WorkReportController::class, 'submit']);
     Route::post('/work-reports/photo', [WorkReportController::class, 'photo']);
-    Route::get('/work-reports/daily', [WorkReportController::class, 'daily']);
-    Route::post('/work-reports/daily', [WorkReportController::class, 'saveDaily']);
+    Route::post('/work-reports/photo/delete', [WorkReportController::class, 'deletePhoto']);
     Route::post('/sync', [SyncController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });

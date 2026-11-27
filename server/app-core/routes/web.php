@@ -46,7 +46,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/work-reports/export', [WorkReportAdminController::class, 'export'])->name('admin.workReports.export');
         Route::get('/work-reports/print', [WorkReportAdminController::class, 'print'])->name('admin.workReports.print');
         Route::get('/work-reports/{id}', [WorkReportAdminController::class, 'show'])->name('admin.workReports.show');
-        Route::get('/work-reports/{id}/photo', [WorkReportAdminController::class, 'photo'])->name('admin.workReports.photo');
+        Route::get('/work-reports/{id}/photo/{kind}', [WorkReportAdminController::class, 'photo'])->name('admin.workReports.photo');
         Route::post('/work-reports/{id}/approve', [WorkReportAdminController::class, 'approve'])->name('admin.workReports.approve');
         Route::post('/work-reports/{id}/return', [WorkReportAdminController::class, 'returnBack'])->name('admin.workReports.return');
         Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports');

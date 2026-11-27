@@ -27,14 +27,20 @@ class WorkReportController extends Controller
     private function present(MonthlyWorkReport $report): array
     {
         $photos = [];
+        $reviews = [];
         foreach (MonthlyWorkReport::PHOTO_KINDS as $kind) {
             $photos[$kind] = $report->photoPath($kind) !== null;
+            $reviews[$kind] = [
+                'state' => $photos[$kind] ? $report->photoReview($kind) : 'missing',
+                'note' => $report->photoNote($kind),
+            ];
         }
 
         return [
             'month' => $report->month,
             'status' => $report->status,
             'photos' => $photos,
+            'photo_reviews' => $reviews,
             'supervisor_note' => $report->supervisor_note,
             'submitted_at' => $report->submitted_at?->toIso8601String(),
             'reviewed_at' => $report->reviewed_at?->toIso8601String(),
@@ -42,9 +48,17 @@ class WorkReportController extends Controller
         ];
     }
 
-    private function locked(MonthlyWorkReport $report): bool
+    /** Why this one photo cannot be changed right now (null = editable). */
+    private function photoLockReason(MonthlyWorkReport $report, string $kind): ?string
     {
-        return in_array($report->status, ['submitted', 'approved'], true);
+        if ($report->photoEditable($kind)) {
+            return null;
+        }
+        if ($report->photoReview($kind) === 'approved' && $report->status !== 'draft') {
+            return 'این عکس توسط دفتر تأیید شده و قفل است.';
+        }
+
+        return 'این راپور ارسال شده و قفل است؛ برای اصلاح باید دفتر آن را برگشت بدهد.';
     }
 
     /** Own reports: the last 12 months with their status (or missing). */
@@ -94,6 +108,24 @@ class WorkReportController extends Controller
         ]);
     }
 
+    /** Stream the midwife's OWN report photo (kind = opv | opd | fp). */
+    public function showPhoto(Request $request, string $kind)
+    {
+        if (!in_array($kind, MonthlyWorkReport::PHOTO_KINDS, true)) {
+            abort(404);
+        }
+        $month = $this->monthOf($request);
+        $report = MonthlyWorkReport::where('midwife_id', $request->user()->id)
+            ->where('month', $month)
+            ->first();
+        $path = $report?->photoPath($kind);
+        if (!$path || !Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('local')->path($path));
+    }
+
     /** Upload (or replace) one report photo: kind = opv | opd | fp. */
     public function photo(Request $request): JsonResponse
     {
@@ -112,11 +144,8 @@ class WorkReportController extends Controller
             ['midwife_id' => $midwifeId, 'month' => $data['month']],
             ['status' => 'draft']
         );
-        if ($this->locked($report)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'این راپور ارسال شده و قفل است؛ برای اصلاح باید دفتر آن را برگشت بدهد.',
-            ], 422);
+        if ($reason = $this->photoLockReason($report, $data['kind'])) {
+            return response()->json(['success' => false, 'message' => $reason], 422);
         }
 
         $old = $report->photoPath($data['kind']);
@@ -125,7 +154,12 @@ class WorkReportController extends Controller
         if ($old) {
             Storage::disk('local')->delete($old);
         }
-        $report->update(['photo_' . $data['kind'] => $name]);
+        // A (re)sent photo goes back to "pending review" with no office note.
+        $report->update([
+            'photo_' . $data['kind'] => $name,
+            'review_' . $data['kind'] => null,
+            'note_' . $data['kind'] => null,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -147,18 +181,19 @@ class WorkReportController extends Controller
         if (!$report) {
             return response()->json(['success' => false, 'message' => 'راپور یافت نشد.'], 404);
         }
-        if ($this->locked($report)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'این راپور ارسال شده و قفل است.',
-            ], 422);
+        if ($reason = $this->photoLockReason($report, $data['kind'])) {
+            return response()->json(['success' => false, 'message' => $reason], 422);
         }
 
         $old = $report->photoPath($data['kind']);
         if ($old) {
             Storage::disk('local')->delete($old);
         }
-        $report->update(['photo_' . $data['kind'] => null]);
+        $report->update([
+            'photo_' . $data['kind'] => null,
+            'review_' . $data['kind'] => null,
+            'note_' . $data['kind'] => null,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -206,6 +241,20 @@ class WorkReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'عکس این راپورها هنوز فرستاده نشده: ' . implode('، ', $missing),
+            ], 422);
+        }
+
+        // A photo the office returned must be re-sent before resubmitting.
+        $stillReturned = [];
+        foreach (MonthlyWorkReport::PHOTO_KINDS as $kind) {
+            if ($report->photoReview($kind) === 'returned') {
+                $stillReturned[] = MonthlyWorkReport::PHOTO_LABELS[$kind];
+            }
+        }
+        if ($stillReturned !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عکس برگشت‌خورده را اول دوباره بفرستید: ' . implode('، ', $stillReturned),
             ], 422);
         }
 

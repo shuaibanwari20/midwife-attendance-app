@@ -67,7 +67,19 @@
                     <td style="font-weight: 700;">{{ $mw->full_name }}</td>
                     <td>{{ $mw->cluster ? $mw->cluster->displayLabel() : '—' }}</td>
                     <td><span class="chip {{ $chipFor[$st] ?? 'chip-grey' }}">{{ \App\Support\PanelText::t(\App\Models\MonthlyWorkReport::STATUS_LABELS[$st] ?? $st) }}</span></td>
-                    <td class="num">{{ $r ? \App\Support\DariDate::en($photoCount) . ' / ' . \App\Support\DariDate::en(3) : '—' }}</td>
+                    <td class="num">{{ $r ? \App\Support\DariDate::en($photoCount) . ' / ' . \App\Support\DariDate::en(3) : '—' }}
+                        @if($r)
+                        <span style="white-space: nowrap; font-size: 11px;">
+                            @foreach(['opv' => 'OPV', 'opd' => 'OPD', 'fp' => 'FP'] as $k => $short)
+                                @php
+                                    $rv = $r->photoPath($k) ? $r->photoReview($k) : null;
+                                    $col = $rv === 'approved' ? '#1e7b34' : ($rv === 'returned' ? '#b3261e' : ($rv === 'pending' ? '#b07d10' : '#b9c4c1'));
+                                @endphp
+                                <span style="color: {{ $col }}; font-weight: 800;">{{ $short }}{{ $rv === 'approved' ? '✓' : ($rv === 'returned' ? '↩' : ($rv === 'pending' ? '•' : '—')) }}</span>
+                            @endforeach
+                        </span>
+                        @endif
+                    </td>
                     <td>
                         @if($r)
                             <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.show', $r->id) }}">{{ \App\Support\PanelText::t('مشاهده') }}</a>

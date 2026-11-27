@@ -10,6 +10,7 @@ class MonthlyWorkReport extends Model
     protected $fillable = [
         'midwife_id', 'month', 'status', 'payload', 'totals',
         'supervisor_note', 'register_photo', 'photo_opv', 'photo_opd', 'photo_fp',
+        'review_opv', 'review_opd', 'review_fp', 'note_opv', 'note_opd', 'note_fp',
         'submitted_at', 'reviewed_at', 'reviewed_by',
     ];
 
@@ -25,6 +26,65 @@ class MonthlyWorkReport extends Model
     public function photoPath(string $kind): ?string
     {
         return $this->{'photo_' . $kind};
+    }
+
+    /**
+     * Per-photo review (his order 2026-11-27): the office reviews each
+     * report photo separately — one can be approved while another is
+     * returned for correction. review_{kind}: null = pending review,
+     * 'approved', 'returned' (with note_{kind} as the office's reason).
+     */
+    public function photoReview(string $kind): string
+    {
+        return $this->{'review_' . $kind} ?? 'pending';
+    }
+
+    public function photoNote(string $kind): ?string
+    {
+        return $this->{'note_' . $kind};
+    }
+
+    /**
+     * Can the midwife still change this one photo? Drafts: yes. Submitted
+     * or fully approved reports: no. A returned report: only the photos
+     * the office did NOT approve — approved photos stay locked.
+     */
+    public function photoEditable(string $kind): bool
+    {
+        if ($this->status === 'draft') {
+            return true;
+        }
+        if ($this->status === 'returned') {
+            return $this->photoReview($kind) !== 'approved';
+        }
+
+        return false;
+    }
+
+    /** Recompute the report-level status from the per-photo reviews. */
+    public function recomputeStatus(): void
+    {
+        $present = 0;
+        $approved = 0;
+        $returned = false;
+        foreach (self::PHOTO_KINDS as $kind) {
+            if (!$this->photoPath($kind)) {
+                continue;
+            }
+            $present++;
+            if ($this->photoReview($kind) === 'approved') {
+                $approved++;
+            } elseif ($this->photoReview($kind) === 'returned') {
+                $returned = true;
+            }
+        }
+        if ($present === count(self::PHOTO_KINDS) && $approved === $present) {
+            $this->status = 'approved';
+        } elseif ($returned) {
+            $this->status = 'returned';
+        } elseif (in_array($this->status, ['submitted', 'returned', 'approved'], true)) {
+            $this->status = 'submitted';
+        }
     }
 
     public function hasAllPhotos(): bool

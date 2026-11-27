@@ -79,43 +79,58 @@ class WorkReportAdminController extends Controller
         return response()->file(Storage::disk('local')->path($path));
     }
 
-    public function approve(Request $request, int $id)
+    /**
+     * Per-photo review (his order 2026-11-27): approve ONE report photo.
+     * The report status follows automatically (all approved = approved).
+     */
+    public function approvePhoto(Request $request, int $id, string $kind)
     {
-        $report = MonthlyWorkReport::findOrFail($id);
-        if ($report->status !== 'submitted') {
-            return back()->withErrors(['فقط راپور ارسال‌شده قابل تأیید است.']);
+        if (!in_array($kind, MonthlyWorkReport::PHOTO_KINDS, true)) {
+            abort(404);
         }
-        $report->update([
-            'status' => 'approved',
-            'reviewed_at' => AttendanceService::now(),
-            'reviewed_by' => $request->user()->id,
-            'supervisor_note' => null,
-        ]);
+        $report = MonthlyWorkReport::findOrFail($id);
+        if (!$report->photoPath($kind)) {
+            return back()->withErrors(['این عکس هنوز فرستاده نشده است.']);
+        }
+        if (!in_array($report->status, ['submitted', 'returned', 'approved'], true)) {
+            return back()->withErrors(['اول باید قابله راپور را ارسال کند.']);
+        }
+        $report->{'review_' . $kind} = 'approved';
+        $report->{'note_' . $kind} = null;
+        $report->reviewed_at = AttendanceService::now();
+        $report->reviewed_by = $request->user()->id;
+        $report->recomputeStatus();
+        $report->save();
 
-        return redirect()->route('admin.workReports', ['month' => $report->month])
-            ->with('ok', 'راپور ' . $report->midwife->full_name . ' تأیید شد.');
+        return back()->with('ok', 'عکس ' . MonthlyWorkReport::PHOTO_LABELS[$kind] . ' تأیید شد.');
     }
 
-    public function returnBack(Request $request, int $id)
+    /** Per-photo review: return ONE report photo for correction, with a note. */
+    public function returnPhoto(Request $request, int $id, string $kind)
     {
+        if (!in_array($kind, MonthlyWorkReport::PHOTO_KINDS, true)) {
+            abort(404);
+        }
         $data = $request->validate([
             'note' => ['required', 'string', 'max:1000'],
         ], [
-            'note.required' => 'برای برگشت‌دادن راپور، نوشتن نظر لازم است.',
+            'note.required' => 'برای برگشت‌دادن عکس، نوشتن دلیل لازم است.',
         ]);
         $report = MonthlyWorkReport::findOrFail($id);
-        if (!in_array($report->status, ['submitted', 'approved'], true)) {
-            return back()->withErrors(['این راپور قابل برگشت نیست.']);
+        if (!$report->photoPath($kind)) {
+            return back()->withErrors(['این عکس هنوز فرستاده نشده است.']);
         }
-        $report->update([
-            'status' => 'returned',
-            'reviewed_at' => AttendanceService::now(),
-            'reviewed_by' => $request->user()->id,
-            'supervisor_note' => $data['note'],
-        ]);
+        if (!in_array($report->status, ['submitted', 'returned', 'approved'], true)) {
+            return back()->withErrors(['اول باید قابله راپور را ارسال کند.']);
+        }
+        $report->{'review_' . $kind} = 'returned';
+        $report->{'note_' . $kind} = $data['note'];
+        $report->reviewed_at = AttendanceService::now();
+        $report->reviewed_by = $request->user()->id;
+        $report->recomputeStatus();
+        $report->save();
 
-        return redirect()->route('admin.workReports', ['month' => $report->month])
-            ->with('ok', 'راپور برای اصلاح به قابله برگشت داده شد.');
+        return back()->with('ok', 'عکس ' . MonthlyWorkReport::PHOTO_LABELS[$kind] . ' برای اصلاح برگشت داده شد.');
     }
 
     /** Excel/CSV: one row per midwife with the report status of the month. */
@@ -134,15 +149,25 @@ class WorkReportAdminController extends Controller
         $body = [];
         foreach ($midwives as $mw) {
             $r = $reports->get($mw->id);
-            $yn = fn (?string $p) => $p ? 'بلی' : 'نخیر';
+            $cell = function (string $kind) use ($r) {
+                if (!$r || !$r->photoPath($kind)) {
+                    return 'نرسیده';
+                }
+
+                return match ($r->photoReview($kind)) {
+                    'approved' => 'تأیید ✓',
+                    'returned' => 'برگشت ↩',
+                    default => 'در انتظار بررسی',
+                };
+            };
             $body[] = [
                 DariDate::en($mw->code ?? ''),
                 $mw->full_name ?? '',
                 $mw->cluster ? $mw->cluster->displayLabel() : '',
                 $r ? (MonthlyWorkReport::STATUS_LABELS[$r->status] ?? $r->status) : 'نرسیده',
-                $yn($r?->photo_opv),
-                $yn($r?->photo_opd),
-                $yn($r?->photo_fp),
+                $cell('opv'),
+                $cell('opd'),
+                $cell('fp'),
                 $r?->submitted_at ? DariDate::en($r->submitted_at->format('Y-m-d H:i')) : '',
                 $r?->reviewed_at ? DariDate::en($r->reviewed_at->format('Y-m-d H:i')) : '',
             ];

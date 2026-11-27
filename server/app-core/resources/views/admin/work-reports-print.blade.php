@@ -83,15 +83,15 @@
         </thead>
         <tbody>
         @foreach($midwives as $mw)
-            @php $r = $reports->get($mw->id); $st = $r?->status ?? 'missing'; $yn = fn ($p) => $p ? '✓' : '—'; @endphp
+            @php $r = $reports->get($mw->id); $st = $r?->status ?? 'missing'; $yn = function ($kind) use ($r) { if (!$r || !$r->photoPath($kind)) return '—'; return match ($r->photoReview($kind)) { 'approved' => '✓', 'returned' => '↩', default => '•' }; }; @endphp
             <tr>
                 <td class="num">{{ \App\Support\DariDate::en($mw->code ?? '') }}</td>
                 <td>{{ $mw->full_name }}</td>
                 <td>{{ $mw->cluster ? $mw->cluster->displayLabel() : '—' }}</td>
                 <td>{{ \App\Models\MonthlyWorkReport::STATUS_LABELS[$st] ?? $st }}</td>
-                <td class="num">{{ $yn($r?->photo_opv) }}</td>
-                <td class="num">{{ $yn($r?->photo_opd) }}</td>
-                <td class="num">{{ $yn($r?->photo_fp) }}</td>
+                <td class="num">{{ $yn('opv') }}</td>
+                <td class="num">{{ $yn('opd') }}</td>
+                <td class="num">{{ $yn('fp') }}</td>
                 <td class="num">{{ $r?->submitted_at ? \App\Support\DariDate::en($r->submitted_at->format('Y-m-d')) : '—' }}</td>
             </tr>
         @endforeach

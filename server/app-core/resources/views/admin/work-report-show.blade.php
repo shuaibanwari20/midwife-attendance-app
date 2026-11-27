@@ -5,6 +5,9 @@
 @section('content')
 @php
     $chipFor = ['approved' => 'chip-green', 'submitted' => 'chip-amber', 'returned' => 'chip-red', 'draft' => 'chip-teal'];
+    $reviewChip = ['approved' => 'chip-green', 'returned' => 'chip-red', 'pending' => 'chip-amber'];
+    $reviewLabel = ['approved' => 'تأیید شده ✓', 'returned' => 'برگشت‌خورده ↩', 'pending' => 'در انتظار بررسی'];
+    $reviewable = in_array($report->status, ['submitted', 'returned', 'approved'], true);
 @endphp
 <div class="page-title">
     <div>
@@ -22,42 +25,47 @@
     </div>
 </div>
 
+<p style="color:#5a6b70; margin: 4px 0 14px;">{{ \App\Support\PanelText::t('هر عکس جدا بررسی می‌شود: می‌توانید یک عکس را تأیید و دیگری را برای اصلاح برگشت بدهید. فقط عکس برگشت‌خورده را قابله باید دوباره بفرستد.') }}</p>
+
 @foreach($photoKinds as $kind)
+@php $review = $report->photoPath($kind) ? $report->photoReview($kind) : null; @endphp
 <div class="card">
-    <h2>{{ \App\Support\PanelText::t($photoLabels[$kind]) }}</h2>
+    <h2>{{ \App\Support\PanelText::t($photoLabels[$kind]) }}
+        @if($review)
+            <span class="chip {{ $reviewChip[$review] }}" style="margin-inline-start: 8px;">{{ \App\Support\PanelText::t($reviewLabel[$review]) }}</span>
+        @endif
+    </h2>
     @if($report->photoPath($kind))
         <a href="{{ route('admin.workReports.photo', [$report->id, $kind]) }}" target="_blank">
             <img src="{{ route('admin.workReports.photo', [$report->id, $kind]) }}" alt="{{ $kind }}" style="max-width: 520px; width: 100%; border-radius: 10px; border: 1px solid #ddd;">
         </a>
-        <div style="margin-top: 8px;">
-            <a class="btn btn-ghost btn-sm" href="{{ route('admin.workReports.photo', [$report->id, $kind]) }}" target="_blank">{{ \App\Support\PanelText::t('بازکردن عکس کامل') }}</a>
+        @if($review === 'returned' && $report->photoNote($kind))
+            <div class="alert alert-err" style="margin-top: 10px;">{{ \App\Support\PanelText::t('دلیل برگشت:') }} {{ $report->photoNote($kind) }}</div>
+        @endif
+        @if($reviewable)
+        <div style="display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; align-items: flex-start;">
+            @if($review !== 'approved')
+            <form method="POST" action="{{ route('admin.workReports.photoApprove', [$report->id, $kind]) }}">
+                @csrf
+                <button type="submit" class="btn btn-primary btn-sm">{{ \App\Support\PanelText::t('تأیید این عکس') }} ✓</button>
+            </form>
+            @endif
+            @if($review !== 'returned')
+            <form method="POST" action="{{ route('admin.workReports.photoReturn', [$report->id, $kind]) }}" style="flex: 1; min-width: 260px; display: flex; gap: 8px;">
+                @csrf
+                <input type="text" name="note" class="form-control" required maxlength="1000" placeholder="{{ \App\Support\PanelText::t('دلیل برگشت این عکس…') }}">
+                <button type="submit" class="btn btn-ghost btn-sm" style="white-space: nowrap;">{{ \App\Support\PanelText::t('برگشت این عکس') }} ↩</button>
+            </form>
+            @endif
         </div>
+        @endif
     @else
         <p style="color: #b3261e; font-weight: 700;">{{ \App\Support\PanelText::t('این عکس هنوز فرستاده نشده است.') }}</p>
     @endif
 </div>
 @endforeach
 
-@if($report->status === 'submitted')
-<div class="card">
-    <h2>{{ \App\Support\PanelText::t('بررسی دفتر') }}</h2>
-    <form method="POST" action="{{ route('admin.workReports.approve', $report->id) }}" style="margin-bottom: 16px;">
-        @csrf
-        <button type="submit" class="btn btn-primary">{{ \App\Support\PanelText::t('تأیید راپور') }} ✓</button>
-    </form>
-    <form method="POST" action="{{ route('admin.workReports.return', $report->id) }}">
-        @csrf
-        <label style="display:block; font-weight:700; margin-bottom:6px;">{{ \App\Support\PanelText::t('برگشت برای اصلاح — نظر شما به قابله می‌رسد:') }}</label>
-        <textarea name="note" class="form-control" rows="3" required maxlength="1000" placeholder="{{ \App\Support\PanelText::t('علت برگشت و اصلاح لازم را بنویسید…') }}"></textarea>
-        <button type="submit" class="btn btn-ghost" style="margin-top: 10px;">{{ \App\Support\PanelText::t('برگشت‌دادن راپور') }} ↩</button>
-    </form>
-</div>
-@endif
-
-@if($report->status === 'returned' && $report->supervisor_note)
-<div class="alert alert-err">{{ \App\Support\PanelText::t('نظر دفتر:') }} {{ $report->supervisor_note }}</div>
-@endif
 @if($report->status === 'approved')
-<div class="alert alert-ok">{{ \App\Support\PanelText::t('این راپور تأیید شده است.') }} @if($report->reviewed_at) ({{ \App\Support\DariDate::full($report->reviewed_at) }}) @endif</div>
+<div class="alert alert-ok">{{ \App\Support\PanelText::t('هر سه عکس تأیید شده — این راپور کامل است.') }} @if($report->reviewed_at) ({{ \App\Support\DariDate::full($report->reviewed_at) }}) @endif</div>
 @endif
 @endsection

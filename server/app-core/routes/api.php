@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/work-reports/months', [WorkReportController::class, 'months']);
     Route::get('/work-reports/current', [WorkReportController::class, 'current']);
     Route::post('/work-reports/submit', [WorkReportController::class, 'submit']);
+    Route::get('/work-reports/photo/{kind}', [WorkReportController::class, 'showPhoto']);
     Route::post('/work-reports/photo', [WorkReportController::class, 'photo']);
     Route::post('/work-reports/photo/delete', [WorkReportController::class, 'deletePhoto']);
     Route::post('/sync', [SyncController::class, 'store']);

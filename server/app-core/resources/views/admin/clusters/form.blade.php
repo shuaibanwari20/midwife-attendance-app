@@ -5,6 +5,16 @@
 @section('head')
     <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <style>
+        .leaflet-control-locate {
+            width: 36px; height: 36px; background: #fff; border-radius: 8px;
+            box-shadow: 0 1px 5px rgba(0,0,0,.35); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .leaflet-control-locate:hover { background: #F2F6F4; }
+        .leaflet-control-locate.busy { opacity: .55; pointer-events: none; }
+        .leaflet-control-locate svg { display: block; }
+    </style>
 @endsection
 
 @section('content')
@@ -104,5 +114,58 @@
     document.querySelector('[name=radius_m]').addEventListener('input', function () {
         circle.setRadius(parseInt(this.value) || 150);
     });
+
+    /* GPS button inside the map: shows the ADMIN's own current position
+       (blue dot + accuracy circle) and flies the map to it, so a cluster
+       can be registered while standing on site (his order 2026-11-28). */
+    let meDot = null;
+    let meAccuracy = null;
+    const LocateControl = L.Control.extend({
+        options: { position: 'bottomright' },
+        onAdd: function () {
+            const btn = L.DomUtil.create('div', 'leaflet-control-locate');
+            btn.title = @json(\App\Support\PanelText::t('موقعیت من'));
+            btn.innerHTML = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0D5C63" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2.2" fill="#0D5C63" stroke="none"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>';
+            L.DomEvent.on(btn, 'click', function (ev) {
+                L.DomEvent.stopPropagation(ev);
+                locateAdmin(btn);
+            });
+            return btn;
+        }
+    });
+    picker.addControl(new LocateControl());
+
+    function locateAdmin(btn) {
+        if (!navigator.geolocation) {
+            alert(@json(\App\Support\PanelText::t('این مرورگر موقعیت‌یابی را پشتیبانی نمی‌کند.')));
+            return;
+        }
+        btn.classList.add('busy');
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            btn.classList.remove('busy');
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = Math.max(pos.coords.accuracy || 0, 15);
+            if (meDot) {
+                meDot.setLatLng([lat, lng]);
+                meAccuracy.setLatLng([lat, lng]);
+                meAccuracy.setRadius(acc);
+            } else {
+                meAccuracy = L.circle([lat, lng], {
+                    radius: acc, color: '#2E7CF6', weight: 1, fillColor: '#2E7CF6', fillOpacity: 0.12
+                }).addTo(picker);
+                meDot = L.circleMarker([lat, lng], {
+                    radius: 8, color: '#FFFFFF', weight: 2.5, fillColor: '#2E7CF6', fillOpacity: 1
+                }).addTo(picker);
+                meDot.bindTooltip(@json(\App\Support\PanelText::t('موقعیت شما')));
+            }
+            picker.flyTo([lat, lng], Math.max(picker.getZoom(), 17), { duration: 0.8 });
+        }, function (err) {
+            btn.classList.remove('busy');
+            alert(err && err.code === 1
+                ? @json(\App\Support\PanelText::t('اجازۀ موقعیت داده نشد. لطفاً اجازۀ موقعیت را در مرورگر فعال کنید.'))
+                : @json(\App\Support\PanelText::t('موقعیت شما پیدا نشد. GPS را روشن کنید و دوباره تلاش کنید.')));
+        }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 });
+    }
 </script>
 @endsection

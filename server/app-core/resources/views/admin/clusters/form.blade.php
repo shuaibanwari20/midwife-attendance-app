@@ -14,6 +14,26 @@
         .leaflet-control-locate:hover { background: #F2F6F4; }
         .leaflet-control-locate.busy { opacity: .55; pointer-events: none; }
         .leaflet-control-locate svg { display: block; }
+        .leaflet-control-views { position: relative; }
+        .leaflet-control-views .views-btn {
+            width: 36px; height: 36px; background: #fff; border-radius: 8px;
+            box-shadow: 0 1px 5px rgba(0,0,0,.35); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .leaflet-control-views .views-btn:hover { background: #F2F6F4; }
+        .leaflet-control-views .views-panel {
+            display: none; position: absolute; top: 42px; right: 0; width: 148px;
+            background: #fff; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.30);
+            padding: 5px; z-index: 1000;
+        }
+        .leaflet-control-views.open .views-panel { display: block; }
+        .leaflet-control-views .views-row {
+            display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+            border-radius: 7px; cursor: pointer; font-size: 13.5px; font-weight: 600; color: #21343A;
+        }
+        .leaflet-control-views .views-row:hover { background: #F2F6F4; }
+        .leaflet-control-views .views-row.active { background: #0D5C63; color: #fff; }
+        .leaflet-control-views .views-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; opacity: .55; flex: none; }
     </style>
 @endsection
 
@@ -92,10 +112,80 @@
     const startLng = parseFloat(document.getElementById('lng').value) || 69.2075;
 
     const picker = L.map('picker').setView([startLat, startLng], 13);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(picker);
+
+    /* Map views (his order 2026-11-28): one button inside the map switches
+       between Streets / Satellite / Hybrid / Topo / Dark base layers. */
+    const baseLayers = {
+        streets: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+        }),
+        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19, attribution: 'Esri, Maxar, Earthstar Geographics'
+        }),
+        hybrid: L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19, attribution: 'Esri, Maxar, Earthstar Geographics'
+            }),
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+        ]),
+        topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17, attribution: '&copy; OpenStreetMap contributors, SRTM | OpenTopoMap (CC-BY-SA)'
+        }),
+        dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        })
+    };
+    const viewLabels = {
+        streets: @json(\App\Support\PanelText::t('نقشهٔ خیابان')),
+        satellite: @json(\App\Support\PanelText::t('ستلایت')),
+        hybrid: @json(\App\Support\PanelText::t('ترکیبی')),
+        topo: @json(\App\Support\PanelText::t('توپوگرافی')),
+        dark: @json(\App\Support\PanelText::t('تاریک'))
+    };
+    let currentView = localStorage.getItem('mw.adminMapLayer') || 'streets';
+    if (!baseLayers[currentView]) currentView = 'streets';
+    baseLayers[currentView].addTo(picker);
+
+    const ViewsControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function () {
+            const wrap = L.DomUtil.create('div', 'leaflet-control-views');
+            const btn = L.DomUtil.create('div', 'views-btn', wrap);
+            btn.title = @json(\App\Support\PanelText::t('دید نقشه'));
+            btn.innerHTML = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0D5C63" stroke-width="2" stroke-linejoin="round"><path d="M12 3 21 8l-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5" stroke-linecap="round"/></svg>';
+            const panel = L.DomUtil.create('div', 'views-panel', wrap);
+            Object.keys(baseLayers).forEach(function (key) {
+                const row = L.DomUtil.create('div', 'views-row' + (key === currentView ? ' active' : ''), panel);
+                row.dataset.view = key;
+                row.innerHTML = '<span class="views-dot"></span>' + viewLabels[key];
+                L.DomEvent.on(row, 'click', function (ev) {
+                    L.DomEvent.stopPropagation(ev);
+                    setMapView(key, panel);
+                    wrap.classList.remove('open');
+                });
+            });
+            L.DomEvent.on(btn, 'click', function (ev) {
+                L.DomEvent.stopPropagation(ev);
+                wrap.classList.toggle('open');
+            });
+            L.DomEvent.disableClickPropagation(wrap);
+            return wrap;
+        }
+    });
+    picker.addControl(new ViewsControl());
+
+    function setMapView(key, panel) {
+        if (key === currentView) return;
+        picker.removeLayer(baseLayers[currentView]);
+        currentView = key;
+        baseLayers[currentView].addTo(picker);
+        if (baseLayers[currentView].bringToBack) baseLayers[currentView].bringToBack();
+        localStorage.setItem('mw.adminMapLayer', key);
+        panel.querySelectorAll('.views-row').forEach(function (r) {
+            r.classList.toggle('active', r.dataset.view === key);
+        });
+    }
 
     let marker = L.marker([startLat, startLng]).addTo(picker);
     let circle = L.circle([startLat, startLng], {

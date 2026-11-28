@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Cluster;
 use App\Models\Midwife;
+use App\Models\MonthlyWorkReport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class MidwifeAdminController extends Controller
@@ -95,6 +98,40 @@ class MidwifeAdminController extends Controller
         $midwife->update(['active' => false]);
 
         return redirect()->route('admin.midwives.index')->with('ok', 'قابله غیرفعال شد (سوابق حفظ شد).');
+    }
+
+    /** Permanent delete (his order 2026-11-28): the midwife AND every record
+     *  of hers — attendances, leaves, reports + photos, biometric keys,
+     *  tokens — are removed in one transaction. No way back. */
+    public function forceDestroy(int $id): RedirectResponse
+    {
+        $midwife = Midwife::findOrFail($id);
+        $name = $midwife->full_name;
+
+        DB::transaction(function () use ($midwife) {
+            foreach (MonthlyWorkReport::where('midwife_id', $midwife->id)->get() as $report) {
+                foreach (MonthlyWorkReport::PHOTO_KINDS as $kind) {
+                    $path = $report->photoPath($kind);
+                    if ($path) {
+                        Storage::disk('local')->delete($path);
+                    }
+                }
+            }
+            Storage::disk('local')->deleteDirectory('work-reports/'.$midwife->id);
+            foreach ([
+                'attendances', 'leaves', 'problem_reports', 'monthly_work_reports',
+                'work_report_daily_entries', 'survey_responses', 'notifications',
+                'notification_reads', 'biometric_keys', 'biometric_codes',
+                'biometric_challenges',
+            ] as $table) {
+                DB::table($table)->where('midwife_id', $midwife->id)->delete();
+            }
+            $midwife->tokens()->delete();
+            $midwife->delete();
+        });
+
+        return redirect()->route('admin.midwives.index')
+            ->with('ok', 'قابله «'.$name.'» و تمام سوابقش کاملاً حذف شد.');
     }
 
     public function resetPin(Request $request, int $id): RedirectResponse

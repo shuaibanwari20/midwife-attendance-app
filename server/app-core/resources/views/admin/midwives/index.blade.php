@@ -68,6 +68,18 @@
                                    name="pin" placeholder="پین جدید" maxlength="8" required>
                             <button type="submit" class="btn btn-gold btn-sm">{{ \App\Support\PanelText::t('تغییر پین') }}</button>
                         </form>
+                        @if($midwife->active)
+                            <form method="POST" action="{{ route('admin.midwives.destroy', $midwife->id) }}" class="inline-form">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('{{ \App\Support\PanelText::t('قابله غیرفعال شود؟ سوابقش حفظ می‌شود و از ویرایش می‌توانید دوباره فعالش کنید.') }}');">{{ \App\Support\PanelText::t('غیرفعال') }}</button>
+                            </form>
+                        @endif
+                        <form method="POST" action="{{ route('admin.midwives.force-delete', $midwife->id) }}" class="inline-form">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ \App\Support\PanelText::t('حذف کامل؟') }} {{ $midwife->full_name }} — {{ \App\Support\PanelText::t('تمام سوابق حضور، رخصتی و راپورهایش برای همیشه پاک می‌شود و برگشت ندارد!') }}');">{{ \App\Support\PanelText::t('حذف کامل') }}</button>
+                        </form>
                     </td>
                 </tr>
             @endforeach

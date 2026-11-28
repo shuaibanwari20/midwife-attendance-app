@@ -67,6 +67,7 @@ Route::prefix('admin')->group(function () {
         Route::put('/midwives/{id}', [MidwifeAdminController::class, 'update'])->name('admin.midwives.update');
         Route::delete('/midwives/{id}', [MidwifeAdminController::class, 'destroy'])->name('admin.midwives.destroy');
         Route::post('/midwives/{id}/reset-pin', [MidwifeAdminController::class, 'resetPin'])->name('admin.midwives.reset-pin');
+        Route::post('/midwives/{id}/biometric-code', [MidwifeAdminController::class, 'issueBiometricCode'])->name('admin.midwives.biometric-code');
         Route::post('/midwives/{id}/unbind-device', [MidwifeAdminController::class, 'unbindDevice'])->name('admin.midwives.unbind');
 
         Route::get('/leaves', [LeaveAdminController::class, 'index'])->name('admin.leaves.index');

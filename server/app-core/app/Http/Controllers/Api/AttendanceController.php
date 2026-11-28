@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Support\AttendanceService;
+use App\Support\BiometricGuard;
 use App\Support\DariDate;
 use App\Support\Geo;
 use Carbon\Carbon;
@@ -13,6 +14,39 @@ use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
+    /**
+     * Fingerprint-key gate (his approved plan, 2026-11-28): once a midwife
+     * is enrolled, creating a record REQUIRES a fresh signature from the
+     * hardware key only her fingerprint can use. 'invalidated' blocks
+     * outright until the office re-enrolls her.
+     */
+    private function biometricGate(Request $request, object $midwife): ?JsonResponse
+    {
+        $state = BiometricGuard::state($midwife);
+
+        if ($state === 'none') {
+            return null;
+        }
+
+        if ($state === 'invalidated') {
+            return response()->json([
+                'success' => false,
+                'message' => 'ثبت‌نام اثر انگشت شما باطل شده است — برای فعال‌سازی دوباره به دفتر مراجعه کنید.',
+                'error_code' => 'biometric_invalidated',
+            ], 422);
+        }
+
+        if (! BiometricGuard::verifyChallenge($midwife, $request->input('bio_token'), $request->input('bio_signature'))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تأیید اثر انگشت لازم است یا ناموفق بود. دوباره تلاش کنید.',
+                'error_code' => 'biometric_required',
+            ], 422);
+        }
+
+        return null;
+    }
+
     /**
      * POST /api/check-in
      *
@@ -33,6 +67,8 @@ class AttendanceController extends Controller
             'device_time' => ['nullable', 'date'],
             'offline' => ['nullable', 'boolean'],
             'client_uuid' => ['nullable', 'string', 'max:64'],
+            'bio_token' => ['nullable', 'string', 'max:64'],
+            'bio_signature' => ['nullable', 'string', 'max:1024'],
         ]);
 
         $midwife = $request->user()->load('cluster');
@@ -107,6 +143,11 @@ class AttendanceController extends Controller
             ], 422);
         }
 
+        // 4c) Fingerprint-key gate — before any record is created.
+        if ($gate = $this->biometricGate($request, $midwife)) {
+            return $gate;
+        }
+
         // 5) Status from server time
         $status = AttendanceService::statusFor($now);
 
@@ -154,6 +195,8 @@ class AttendanceController extends Controller
             'device_time' => ['nullable', 'date'],
             'offline' => ['nullable', 'boolean'],
             'client_uuid' => ['nullable', 'string', 'max:64'],
+            'bio_token' => ['nullable', 'string', 'max:64'],
+            'bio_signature' => ['nullable', 'string', 'max:1024'],
         ]);
 
         $midwife = $request->user()->load('cluster');
@@ -220,6 +263,11 @@ class AttendanceController extends Controller
                 'message' => 'خروج امروز شما قبلاً ثبت شده است.',
                 'data' => ['attendance' => $this->attendancePayload($attendance, $cluster)],
             ]);
+        }
+
+        // Fingerprint-key gate — before the check-out is written.
+        if ($gate = $this->biometricGate($request, $midwife)) {
+            return $gate;
         }
 
         // The window (بازهٔ خروج) — outside it, check-out is locked.

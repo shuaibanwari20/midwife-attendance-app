@@ -70,6 +70,10 @@ class ProfileController extends Controller
                     'checkout_state' => AttendanceService::checkoutState(AttendanceService::now()->startOfDay(), $todayAttendance),
                 ] : null,
                 'unread_notifications' => $unread,
+                // Fingerprint-key binding state for the app.
+                'biometric' => [
+                    'state' => \App\Support\BiometricGuard::state($midwife),
+                ],
             ],
         ]);
     }

@@ -29,6 +29,7 @@ class SyncController extends Controller
             'records.*.accuracy' => ['nullable', 'numeric', 'min:0'],
             'records.*.is_mocked' => ['nullable', 'boolean'],
             'records.*.kind' => ['nullable', 'in:checkin,checkout'],
+            'records.*.bio_signature' => ['nullable', 'string', 'max:1024'],
         ]);
 
         $midwife = $request->user()->load('cluster');
@@ -88,6 +89,24 @@ class SyncController extends Controller
                 $existingToday = Attendance::where('midwife_id', $midwife->id)
                     ->whereDate('attendance_date', $date)
                     ->first();
+
+                // Fingerprint-key gate for offline records: an enrolled
+                // midwife's queued records must carry the signature made
+                // with her hardware key at capture time.
+                $bioState = \App\Support\BiometricGuard::state($midwife);
+                if ($bioState === 'invalidated') {
+                    $results[] = ['client_uuid' => $uuid, 'status' => 'rejected', 'message' => 'ثبت‌نام اثر انگشت باطل شده است — به دفتر مراجعه کنید.'];
+                    continue;
+                }
+                if ($bioState === 'active') {
+                    $payload = \App\Support\BiometricGuard::offlinePayload(
+                        $uuid, (string) $record['device_time'], (float) $record['lat'], (float) $record['lng']
+                    );
+                    if (! \App\Support\BiometricGuard::verifyPayload($midwife, $payload, $record['bio_signature'] ?? null)) {
+                        $results[] = ['client_uuid' => $uuid, 'status' => 'rejected', 'message' => 'امضای اثر انگشت آفلاین نامعتبر است.'];
+                        continue;
+                    }
+                }
 
                 // Offline CHECK-OUT (two-time attendance): attaches to the
                 // day's existing check-in; the window is judged by the

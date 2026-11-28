@@ -27,6 +27,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/server-time', [ServerTimeController::class, 'index']);
     Route::post('/check-in', [AttendanceController::class, 'checkIn']);
     Route::post('/check-out', [AttendanceController::class, 'checkOut']);
+    Route::get('/biometric/challenge', [\App\Http\Controllers\Api\BiometricController::class, 'challenge']);
+    Route::post('/biometric/enroll', [\App\Http\Controllers\Api\BiometricController::class, 'enroll']);
+    Route::post('/biometric/invalidated', [\App\Http\Controllers\Api\BiometricController::class, 'invalidated']);
     Route::get('/history', [HistoryController::class, 'index']);
     Route::get('/week', [WeekController::class, 'index']);
     Route::get('/leaves', [LeaveController::class, 'index']);

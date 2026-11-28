@@ -42,10 +42,35 @@ class MidwifeAdminController extends Controller
 
     public function edit(int $id): View
     {
+        $midwife = Midwife::findOrFail($id);
+
         return view('admin.midwives.form', [
-            'midwife' => Midwife::findOrFail($id),
+            'midwife' => $midwife,
             'clusters' => Cluster::orderBy('code')->get(),
+            'bioState' => \App\Support\BiometricGuard::state($midwife),
+            'bioKey' => \App\Models\BiometricKey::where('midwife_id', $midwife->id)->latest('id')->first(),
         ]);
+    }
+
+    /**
+     * Issue a one-time fingerprint enrollment code (30 minutes). The plain
+     * code is flashed to the session once so the admin can read it to the
+     * midwife in person — it is never stored in plain text.
+     */
+    public function issueBiometricCode(int $id): RedirectResponse
+    {
+        $midwife = Midwife::findOrFail($id);
+        $plain = (string) random_int(100000, 999999);
+
+        \App\Models\BiometricCode::create([
+            'midwife_id' => $midwife->id,
+            'code_hash' => \Illuminate\Support\Facades\Hash::make($plain),
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        return back()
+            ->with('ok', 'کد ثبت‌نام اثر انگشت ساخته شد.')
+            ->with('bio_code', $plain);
     }
 
     public function update(Request $request, int $id): RedirectResponse

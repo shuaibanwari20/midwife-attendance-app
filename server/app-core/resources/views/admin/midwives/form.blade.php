@@ -62,4 +62,36 @@
         </div>
     </form>
 </div>
+
+@if($midwife && isset($bioState))
+<div class="card">
+    <h2>{{ \App\Support\PanelText::t('اثر انگشت (حاضری فقط با انگشت خودش)') }}</h2>
+    <div style="margin-bottom: 10px;">
+        @if($bioState === 'active')
+            <span class="chip chip-green"><span class="dot" style="background:#2FA36B"></span>{{ \App\Support\PanelText::t('فعال') }}</span>
+            <span class="num" style="color: var(--muted);">{{ \App\Support\PanelText::t('ثبت شده در') }} {{ $bioKey ? \App\Support\DariDate::full($bioKey->enrolled_at) : '' }}</span>
+        @elseif($bioState === 'invalidated')
+            <span class="chip chip-red"><span class="dot" style="background:#D9534F"></span>{{ \App\Support\PanelText::t('باطل شده') }}</span>
+            <span style="color: var(--muted);">{{ \App\Support\PanelText::t('انگشت‌های گوشی تغییر کرده — حاضری تا ثبت‌نام دوباره بسته است') }}</span>
+        @else
+            <span class="chip chip-grey"><span class="dot" style="background:#9AA8AB"></span>{{ \App\Support\PanelText::t('ثبت نشده') }}</span>
+            <span style="color: var(--muted);">{{ \App\Support\PanelText::t('تا ثبت‌نام، حاضری بدون اثر انگشت کار می‌کند') }}</span>
+        @endif
+    </div>
+
+    @if(session('bio_code'))
+        <div class="banner" style="background:#FFF7E0;border:1px solid #E8C86A;border-radius:10px;padding:12px;margin-bottom:10px;">
+            {{ \App\Support\PanelText::t('کد ثبت‌نام (فقط همین یک بار نمایش داده می‌شود — حضوری به خود قابله بدهید):') }}
+            <div class="num" style="font-size: 26px; font-weight: 900; letter-spacing: 4px;">{{ \App\Support\DariDate::en(session('bio_code')) }}</div>
+            <div style="color: var(--muted);">{{ \App\Support\PanelText::t('اعتبار: 30 دقیقه — یک بار مصرف') }}</div>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('admin.midwives.biometric-code', $midwife->id) }}">
+        @csrf
+        <button type="submit" class="btn btn-primary">{{ \App\Support\PanelText::t('صدور کد ثبت‌نام اثر انگشت') }}</button>
+    </form>
+    <div class="form-hint" style="margin-top: 8px;">{{ \App\Support\PanelText::t('قابله کد را در اپ (پروفایل ← ثبت اثر انگشت) وارد می‌کند و انگشت خودش را اسکن می‌کند. اگر بعداً در گوشی انگشت تازه‌ای ثبت شود، کلید او خودکار باطل و حاضری بسته می‌شود.') }}</div>
+</div>
+@endif
 @endsection

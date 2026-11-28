@@ -54,6 +54,57 @@ class AttendanceService
         return self::workEnd();
     }
 
+    /** Check-out window opens (admin-set; two-time attendance, 2026-11-28). */
+    public static function checkoutStart(): Carbon
+    {
+        return Carbon::parse(
+            Setting::get('checkout_start', config('midwife.checkout_start', '12:30')),
+            self::timezone()
+        );
+    }
+
+    /** Check-out window closes — after this, check-out is locked. */
+    public static function checkoutEnd(): Carbon
+    {
+        return Carbon::parse(
+            Setting::get('checkout_end', config('midwife.checkout_end', '13:30')),
+            self::timezone()
+        );
+    }
+
+    /**
+     * Check-out state of a day: none (no check-in) | done | waiting (window
+     * not open yet) | open (inside the window, not yet done) | missed
+     * (window closed without a check-out).
+     */
+    public static function checkoutState(Carbon $day, ?Attendance $attendance): string
+    {
+        if (! $attendance) {
+            return 'none';
+        }
+        if ($attendance->checkout_at) {
+            return 'done';
+        }
+
+        $today = self::now()->startOfDay();
+        if ($day->greaterThan($today)) {
+            return 'waiting';
+        }
+        if ($day->lessThan($today)) {
+            return 'missed';
+        }
+
+        $now = self::now();
+        if ($now->lessThan(self::checkoutStart())) {
+            return 'waiting';
+        }
+        if ($now->greaterThan(self::checkoutEnd())) {
+            return 'missed';
+        }
+
+        return 'open';
+    }
+
     /**
      * @return array{status: 'on_time'|'late', late_minutes: int}
      */

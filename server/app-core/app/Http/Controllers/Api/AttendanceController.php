@@ -138,6 +138,126 @@ class AttendanceController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/check-out — two-time attendance (his order 2026-11-28,
+     * option ب): leaving work is recorded too, ONLY inside the admin-set
+     * check-out window. Same anti-cheating gates as check-in (mock GPS,
+     * accuracy, geofence — all recomputed server-side).
+     */
+    public function checkOut(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0'],
+            'is_mocked' => ['nullable', 'boolean'],
+            'device_time' => ['nullable', 'date'],
+            'offline' => ['nullable', 'boolean'],
+            'client_uuid' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $midwife = $request->user()->load('cluster');
+        $cluster = $midwife->cluster;
+
+        if (! $cluster) {
+            return response()->json([
+                'success' => false,
+                'message' => 'شما به هیچ کلستری متصل نیستید. با سوپروایزر تماس بگیرید.',
+            ], 422);
+        }
+
+        if (! empty($data['is_mocked'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'موقعیت جعلی (GPS جعلی) شناسایی شد. ثبت خروج با GPS جعلی ممکن نیست.',
+                'error_code' => 'mocked_gps',
+            ], 422);
+        }
+
+        $accuracy = isset($data['accuracy']) ? (float) $data['accuracy'] : null;
+        $maxAccuracy = (float) config('midwife.max_gps_accuracy', 50);
+        if ($accuracy !== null && $accuracy > $maxAccuracy) {
+            return response()->json([
+                'success' => false,
+                'message' => 'دقت GPS کافی نیست ('.DariDate::en((string) round($accuracy)).' متر خطا). به فضای باز بروید و دوباره تلاش کنید.',
+                'error_code' => 'low_accuracy',
+            ], 422);
+        }
+
+        $lat = (float) $data['lat'];
+        $lng = (float) $data['lng'];
+        $distance = Geo::distanceMeters($lat, $lng, (float) $cluster->lat, (float) $cluster->lng);
+        $radius = (int) $cluster->radius_m;
+
+        if ($distance > $radius) {
+            return response()->json([
+                'success' => false,
+                'message' => 'خارج از ساحه کلستر هستید. فاصله شما تا مرکز کلستر '.DariDate::en((string) round($distance)).' متر است (حد مجاز '.DariDate::en((string) $radius).' متر).',
+                'error_code' => 'outside_geofence',
+                'data' => ['distance_m' => $distance, 'radius_m' => $radius],
+            ], 422);
+        }
+
+        $now = AttendanceService::now();
+        $today = $now->toDateString();
+
+        $attendance = Attendance::where('midwife_id', $midwife->id)
+            ->whereDate('attendance_date', $today)
+            ->first();
+
+        if (! $attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'برای امروز هنوز حضور ثبت نکرده‌اید — اول ثبت حضور کنید.',
+                'error_code' => 'no_checkin',
+            ], 422);
+        }
+
+        if ($attendance->checkout_at) {
+            return response()->json([
+                'success' => true,
+                'already_recorded' => true,
+                'message' => 'خروج امروز شما قبلاً ثبت شده است.',
+                'data' => ['attendance' => $this->attendancePayload($attendance, $cluster)],
+            ]);
+        }
+
+        // The window (بازهٔ خروج) — outside it, check-out is locked.
+        $windowStart = AttendanceService::checkoutStart();
+        $windowEnd = AttendanceService::checkoutEnd();
+        if ($now->lessThan($windowStart)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'بازۀ خروج هنوز شروع نشده است — ثبت خروج از ساعت '.DariDate::en($windowStart->format('H:i')).' ممکن است.',
+                'error_code' => 'checkout_too_early',
+            ], 422);
+        }
+        if ($now->greaterThan($windowEnd)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'بازۀ خروج امروز تمام شده است — ثبت خروج قفل است.',
+                'error_code' => 'checkout_locked',
+            ], 422);
+        }
+
+        $attendance->update([
+            'checkout_at' => $now,
+            'checkout_lat' => $lat,
+            'checkout_lng' => $lng,
+            'checkout_distance_m' => $distance,
+            'checkout_gps_accuracy_m' => $accuracy,
+            'checkout_offline' => (bool) ($data['offline'] ?? false),
+            'checkout_client_uuid' => $data['client_uuid'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'already_recorded' => false,
+            'message' => 'خروج شما با موفقیت ثبت شد.',
+            'data' => ['attendance' => $this->attendancePayload($attendance->fresh(), $cluster)],
+        ]);
+    }
+
     public static function attendancePayload(Attendance $attendance, ?object $cluster = null): array
     {
         $cluster = $cluster ?: $attendance->cluster;
@@ -163,6 +283,12 @@ class AttendanceController extends Controller
             ] : null,
             'offline' => (bool) $attendance->offline,
             'tracking_code' => DariDate::en($attendance->tracking_code),
+            // Two-time attendance: the check-out (خروج), raw values — the
+            // app renders them in its own language.
+            'checkout_time' => $attendance->checkout_at ? DariDate::time24($attendance->checkout_at) : null,
+            'checkout_distance_m' => $attendance->checkout_at ? round((float) $attendance->checkout_distance_m) : null,
+            'checkout_offline' => (bool) $attendance->checkout_offline,
+            'checkout_state' => AttendanceService::checkoutState($attendance->attendance_date, $attendance),
         ];
     }
 }

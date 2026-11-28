@@ -52,6 +52,7 @@ class DashboardController extends Controller
                     'state' => 'before_join',
                     'label' => 'تازه ثبت شده',
                     'time' => '—',
+                    'checkout' => '—',
                     'distance' => '—',
                 ];
                 continue;
@@ -78,12 +79,27 @@ class DashboardController extends Controller
             // only after work_end passes without a check-in (his rule).
             $counts[$state] = ($counts[$state] ?? 0) + 1;
 
+            // Check-out (حاضری دوم): time, or its state for today.
+            $checkout = '—';
+            if ($attendance && $attendance->checkout_at) {
+                $checkout = DariDate::time($attendance->checkout_at);
+            } elseif ($attendance) {
+                $coState = AttendanceService::checkoutState($now->copy()->startOfDay(), $attendance);
+                $checkout = match ($coState) {
+                    'missed' => 'ثبت نشده',
+                    'waiting' => 'در انتظار بازه',
+                    'open' => 'بازه باز است',
+                    default => '—',
+                };
+            }
+
             $rows[] = [
                 'midwife' => $midwife,
                 'attendance' => $attendance,
                 'state' => $state,
                 'label' => $label,
                 'time' => $attendance ? DariDate::time($attendance->checked_at_server) : '—',
+                'checkout' => $checkout,
                 'distance' => $attendance ? DariDate::en((string) round((float) $attendance->distance_m)).' متر' : '—',
             ];
         }

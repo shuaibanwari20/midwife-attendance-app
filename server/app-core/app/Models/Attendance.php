@@ -12,6 +12,8 @@ class Attendance extends Model
         'device_time', 'lat', 'lng', 'distance_m', 'gps_accuracy_m',
         'is_mocked', 'status', 'late_minutes', 'offline', 'tracking_code',
         'client_uuid',
+        'checkout_at', 'checkout_lat', 'checkout_lng', 'checkout_distance_m',
+        'checkout_gps_accuracy_m', 'checkout_offline', 'checkout_client_uuid',
     ];
 
     protected $casts = [
@@ -25,6 +27,12 @@ class Attendance extends Model
         'is_mocked' => 'boolean',
         'late_minutes' => 'integer',
         'offline' => 'boolean',
+        'checkout_at' => 'datetime',
+        'checkout_lat' => 'float',
+        'checkout_lng' => 'float',
+        'checkout_distance_m' => 'float',
+        'checkout_gps_accuracy_m' => 'float',
+        'checkout_offline' => 'boolean',
     ];
 
     public function midwife(): BelongsTo

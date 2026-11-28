@@ -54,6 +54,16 @@
                 <input class="form-control num" type="time" name="work_end" value="{{ old('work_end', $workEnd) }}" required>
                 <div class="form-hint">{{ \App\Support\PanelText::t('بین شروع و ختم:') }}<span class="chip chip-amber">{{ \App\Support\PanelText::t('دیرکرد') }}</span> — بعد از ختم، ثبت حضور <strong>قفل</strong> می‌شود و روز تمام است</div>
             </div>
+            <div>
+                <label class="field-label">{{ \App\Support\PanelText::t('شروع بازۀ خروج *') }}</label>
+                <input class="form-control num" type="time" name="checkout_start" value="{{ old('checkout_start', $checkoutStart) }}" required>
+                <div class="form-hint">{{ \App\Support\PanelText::t('ثبت خروج (حاضری دوم) از این ساعت ممکن می‌شود') }}</div>
+            </div>
+            <div>
+                <label class="field-label">{{ \App\Support\PanelText::t('پایان بازۀ خروج *') }}</label>
+                <input class="form-control num" type="time" name="checkout_end" value="{{ old('checkout_end', $checkoutEnd) }}" required>
+                <div class="form-hint">{{ \App\Support\PanelText::t('بعد از این ساعت ثبت خروج قفل می‌شود و خروج آن روز «ثبت نشده» می‌ماند') }}</div>
+            </div>
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ \App\Support\PanelText::t('ذخیره ساعات کاری') }}</button>

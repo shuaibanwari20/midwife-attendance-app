@@ -29,6 +29,9 @@ class ServerTimeController extends Controller
                 'work_start' => AttendanceService::workStart()->format('H:i'),
                 'work_end' => AttendanceService::workEnd()->format('H:i'),
                 'late_until' => AttendanceService::workEnd()->format('H:i'),
+                // Two-time attendance: the check-out window (بازهٔ خروج).
+                'checkout_start' => AttendanceService::checkoutStart()->format('H:i'),
+                'checkout_end' => AttendanceService::checkoutEnd()->format('H:i'),
                 // Feature 30 — newest published app version (update banner).
                 'app_update' => [
                     'latest_version_code' => (int) (Setting::get('app_latest_version_code') ?: 1),

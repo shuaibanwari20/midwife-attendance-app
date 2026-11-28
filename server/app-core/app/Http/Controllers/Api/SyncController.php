@@ -28,6 +28,7 @@ class SyncController extends Controller
             'records.*.lng' => ['required', 'numeric', 'between:-180,180'],
             'records.*.accuracy' => ['nullable', 'numeric', 'min:0'],
             'records.*.is_mocked' => ['nullable', 'boolean'],
+            'records.*.kind' => ['nullable', 'in:checkin,checkout'],
         ]);
 
         $midwife = $request->user()->load('cluster');
@@ -87,6 +88,47 @@ class SyncController extends Controller
                 $existingToday = Attendance::where('midwife_id', $midwife->id)
                     ->whereDate('attendance_date', $date)
                     ->first();
+
+                // Offline CHECK-OUT (two-time attendance): attaches to the
+                // day's existing check-in; the window is judged by the
+                // device time, exactly like offline check-in.
+                if (($record['kind'] ?? 'checkin') === 'checkout') {
+                    if (! $existingToday) {
+                        $results[] = ['client_uuid' => $uuid, 'status' => 'rejected', 'message' => 'برای آن روز حضور ثبت نشده بود.'];
+                        continue;
+                    }
+                    if ($existingToday->checkout_at || $existingToday->checkout_client_uuid === $uuid) {
+                        $results[] = ['client_uuid' => $uuid, 'status' => 'duplicate', 'message' => 'خروج آن روز قبلاً ثبت شده بود.'];
+                        continue;
+                    }
+                    $winStart = AttendanceService::checkoutStart()->setDate(
+                        (int) $kabulTime->year, (int) $kabulTime->month, (int) $kabulTime->day
+                    );
+                    $winEnd = AttendanceService::checkoutEnd()->setDate(
+                        (int) $kabulTime->year, (int) $kabulTime->month, (int) $kabulTime->day
+                    );
+                    if ($kabulTime->lessThan($winStart) || $kabulTime->greaterThan($winEnd)) {
+                        $results[] = ['client_uuid' => $uuid, 'status' => 'rejected', 'message' => 'خروج آفلاین بیرون از بازۀ خروج بود.'];
+                        continue;
+                    }
+                    $existingToday->update([
+                        'checkout_at' => $kabulTime,
+                        'checkout_lat' => (float) $record['lat'],
+                        'checkout_lng' => (float) $record['lng'],
+                        'checkout_distance_m' => $distance,
+                        'checkout_gps_accuracy_m' => $accuracy,
+                        'checkout_offline' => true,
+                        'checkout_client_uuid' => $uuid,
+                    ]);
+                    $results[] = [
+                        'client_uuid' => $uuid,
+                        'status' => 'synced',
+                        'message' => 'خروج آفلاین همگام شد.',
+                        'attendance' => AttendanceController::attendancePayload($existingToday->fresh(), $cluster),
+                    ];
+                    continue;
+                }
+
                 if ($existingToday) {
                     $results[] = ['client_uuid' => $uuid, 'status' => 'duplicate', 'message' => 'برای این روز قبلاً ثبت وجود داشت.'];
                     continue;

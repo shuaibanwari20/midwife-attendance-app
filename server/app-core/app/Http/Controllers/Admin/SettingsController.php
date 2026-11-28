@@ -17,6 +17,8 @@ class SettingsController extends Controller
         return view('admin.settings', [
             'workStart' => AttendanceService::workStart()->format('H:i'),
             'workEnd' => AttendanceService::workEnd()->format('H:i'),
+            'checkoutStart' => AttendanceService::checkoutStart()->format('H:i'),
+            'checkoutEnd' => AttendanceService::checkoutEnd()->format('H:i'),
             'lateUntil' => AttendanceService::workEnd()->format('H:i'),
             'maxAccuracy' => config('midwife.max_gps_accuracy'),
             'appLatestVersion' => (int) (Setting::get('app_latest_version_code') ?: 1),
@@ -48,17 +50,23 @@ class SettingsController extends Controller
         return back()->with('ok', 'نسخهٔ جدید اپ ثبت شد — اپ‌های قدیمی‌تر از همین حالا خبر می‌شوند.');
     }
 
-    /** Save the working hours (شروع کار / ختم کار) — applies immediately. */
+    /** Save the working hours (شروع کار / ختم کار) + the check-out window — applies immediately. */
     public function updateRules(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'work_start' => ['required', 'date_format:H:i'],
             'work_end' => ['required', 'date_format:H:i'],
+            'checkout_start' => ['required', 'date_format:H:i'],
+            'checkout_end' => ['required', 'date_format:H:i'],
         ], [
             'work_start.required' => 'ساعت شروع کار را وارد کنید.',
             'work_start.date_format' => 'ساعت شروع کار نامعتبر است.',
             'work_end.required' => 'ساعت ختم کار را وارد کنید.',
             'work_end.date_format' => 'ساعت ختم کار نامعتبر است.',
+            'checkout_start.required' => 'ساعت شروع بازۀ خروج را وارد کنید.',
+            'checkout_start.date_format' => 'ساعت شروع بازۀ خروج نامعتبر است.',
+            'checkout_end.required' => 'ساعت پایان بازۀ خروج را وارد کنید.',
+            'checkout_end.date_format' => 'ساعت پایان بازۀ خروج نامعتبر است.',
         ]);
 
         if ($data['work_end'] <= $data['work_start']) {
@@ -67,10 +75,18 @@ class SettingsController extends Controller
                 ->withInput();
         }
 
+        if ($data['checkout_end'] <= $data['checkout_start']) {
+            return back()
+                ->withErrors(['checkout_end' => 'پایان بازۀ خروج باید بعد از شروع آن باشد.'])
+                ->withInput();
+        }
+
         Setting::set('work_start', $data['work_start']);
         Setting::set('work_end', $data['work_end']);
+        Setting::set('checkout_start', $data['checkout_start']);
+        Setting::set('checkout_end', $data['checkout_end']);
 
-        return back()->with('ok', 'ساعات کاری ذخیره شد و از همین حالا اجرا می‌شود.');
+        return back()->with('ok', 'ساعات کاری و بازۀ خروج ذخیره شد و از همین حالا اجرا می‌شود.');
     }
 
     public function update(Request $request): RedirectResponse

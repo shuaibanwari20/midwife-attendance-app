@@ -101,6 +101,7 @@ class HistoryController extends Controller
                 },
                 'check_in_time' => $attendance ? DariDate::time24($attendance->checked_at_server) : null,
                 'check_in_display' => $attendance ? DariDate::time($attendance->checked_at_server) : null,
+                'checkout_time' => $attendance && $attendance->checkout_at ? DariDate::time24($attendance->checkout_at) : null,
                 'late_minutes' => $attendance ? $attendance->late_minutes : 0,
                 'note' => $attendance && $attendance->status === 'late'
                     ? DariDate::time24($attendance->checked_at_server).' — '.DariDate::en((string) $attendance->late_minutes).' دقیقه دیر'
@@ -163,6 +164,7 @@ class HistoryController extends Controller
                 'status_label' => $attendance->status === 'on_time' ? 'حاضر' : 'دیرکرد',
                 'check_in_time' => DariDate::time24($attendance->checked_at_server),
                 'check_in_display' => DariDate::time($attendance->checked_at_server),
+                'checkout_time' => $attendance->checkout_at ? DariDate::time24($attendance->checkout_at) : null,
                 'late_minutes' => $attendance->late_minutes,
                 'note' => $attendance->status === 'late'
                     ? DariDate::time24($attendance->checked_at_server).' — '.DariDate::en((string) $attendance->late_minutes).' دقیقه دیر'

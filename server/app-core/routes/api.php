@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [ProfileController::class, 'me']);
     Route::get('/server-time', [ServerTimeController::class, 'index']);
     Route::post('/check-in', [AttendanceController::class, 'checkIn']);
+    Route::post('/check-out', [AttendanceController::class, 'checkOut']);
     Route::get('/history', [HistoryController::class, 'index']);
     Route::get('/week', [WeekController::class, 'index']);
     Route::get('/leaves', [LeaveController::class, 'index']);

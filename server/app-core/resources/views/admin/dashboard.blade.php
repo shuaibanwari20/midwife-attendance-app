@@ -61,6 +61,7 @@
                 <th>{{ \App\Support\PanelText::t('نام قابله') }}</th>
                 <th>{{ \App\Support\PanelText::t('کلستر') }}</th>
                 <th>{{ \App\Support\PanelText::t('ساعت ثبت حضور') }}</th>
+                <th>{{ \App\Support\PanelText::t('ساعت خروج') }}</th>
                 <th>{{ \App\Support\PanelText::t('فاصله از مرکز') }}</th>
                 <th>{{ \App\Support\PanelText::t('وضعیت') }}</th>
                 <th>{{ \App\Support\PanelText::t('کد پیگیری') }}</th>
@@ -80,6 +81,7 @@
                         @endif
                     </td>
                     <td class="num">{{ $row['time'] }}</td>
+                    <td class="num">{{ $row['checkout'] }}</td>
                     <td class="num">{{ $row['distance'] }}</td>
                     <td>
                         @if($row['state'] === 'on_time')

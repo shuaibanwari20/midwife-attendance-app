@@ -207,9 +207,17 @@
 
     /* GPS button inside the map: shows the ADMIN's own current position
        (blue dot + accuracy circle) and flies the map to it, so a cluster
-       can be registered while standing on site (his order 2026-11-28). */
+       can be registered while standing on site (his order 2026-11-28).
+       Accuracy fix (same day, his report «موقعیت دقیق را نمایش نمی‌دهد»):
+       a single getCurrentPosition returns the phone's FIRST, coarse fix
+       (often 50–100 m off). Now watchPosition keeps refining live until
+       the fix is precise (≤15 m) or 30 s pass; the dot + circle follow
+       every better fix and the tooltip shows the live accuracy (±X m). */
     let meDot = null;
     let meAccuracy = null;
+    let meWatchId = null;
+    let meWatchTimer = null;
+    let meHasFix = false;
     const LocateControl = L.Control.extend({
         options: { position: 'bottomright' },
         onAdd: function () {
@@ -225,17 +233,34 @@
     });
     picker.addControl(new LocateControl());
 
+    function stopMeWatch() {
+        if (meWatchId !== null) {
+            navigator.geolocation.clearWatch(meWatchId);
+            meWatchId = null;
+        }
+        if (meWatchTimer) {
+            clearTimeout(meWatchTimer);
+            meWatchTimer = null;
+        }
+    }
+
     function locateAdmin(btn) {
         if (!navigator.geolocation) {
             alert(@json(\App\Support\PanelText::t('این مرورگر موقعیت‌یابی را پشتیبانی نمی‌کند.')));
             return;
         }
+        if (meWatchId !== null) {
+            /* Already tracking: a second tap just re-centres on the dot. */
+            if (meDot) picker.flyTo(meDot.getLatLng(), Math.max(picker.getZoom(), 18), { duration: 0.8 });
+            return;
+        }
         btn.classList.add('busy');
-        navigator.geolocation.getCurrentPosition(function (pos) {
+        meHasFix = false;
+        meWatchId = navigator.geolocation.watchPosition(function (pos) {
             btn.classList.remove('busy');
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            const acc = Math.max(pos.coords.accuracy || 0, 15);
+            const acc = Math.max(pos.coords.accuracy || 0, 5);
             if (meDot) {
                 meDot.setLatLng([lat, lng]);
                 meAccuracy.setLatLng([lat, lng]);
@@ -247,15 +272,24 @@
                 meDot = L.circleMarker([lat, lng], {
                     radius: 8, color: '#FFFFFF', weight: 2.5, fillColor: '#2E7CF6', fillOpacity: 1
                 }).addTo(picker);
-                meDot.bindTooltip(@json(\App\Support\PanelText::t('موقعیت شما')));
+                meDot.bindTooltip('');
             }
-            picker.flyTo([lat, lng], Math.max(picker.getZoom(), 17), { duration: 0.8 });
+            meDot.setTooltipContent(@json(\App\Support\PanelText::t('موقعیت شما')) + ' (±' + Math.round(acc) + ' ' + @json(\App\Support\PanelText::t('متر')) + ')');
+            if (!meHasFix) {
+                meHasFix = true;
+                picker.flyTo([lat, lng], Math.max(picker.getZoom(), 18), { duration: 0.8 });
+            }
+            if (acc <= 15) stopMeWatch();
         }, function (err) {
             btn.classList.remove('busy');
-            alert(err && err.code === 1
-                ? @json(\App\Support\PanelText::t('اجازۀ موقعیت داده نشد. لطفاً اجازۀ موقعیت را در مرورگر فعال کنید.'))
-                : @json(\App\Support\PanelText::t('موقعیت شما پیدا نشد. GPS را روشن کنید و دوباره تلاش کنید.')));
-        }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 });
+            stopMeWatch();
+            if (!meHasFix) {
+                alert(err && err.code === 1
+                    ? @json(\App\Support\PanelText::t('اجازۀ موقعیت داده نشد. لطفاً اجازۀ موقعیت را در مرورگر فعال کنید.'))
+                    : @json(\App\Support\PanelText::t('موقعیت شما پیدا نشد. GPS را روشن کنید و دوباره تلاش کنید.')));
+            }
+        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+        meWatchTimer = setTimeout(stopMeWatch, 30000);
     }
 </script>
 @endsection

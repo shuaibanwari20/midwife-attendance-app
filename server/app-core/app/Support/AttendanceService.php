@@ -4,10 +4,12 @@ namespace App\Support;
 
 use App\Models\Attendance;
 use App\Models\Cluster;
+use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\Midwife;
 use App\Models\Setting;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Central attendance rules. Server time is always Asia/Kabul.
@@ -147,6 +149,28 @@ class AttendanceService
             ->exists();
     }
 
+    /** @var array<string, string>|null date (Y-m-d) => holiday name, loaded once per request */
+    private static ?array $holidayMap = null;
+
+    /**
+     * Name of the public holiday on the given day, or null. Holidays are
+     * office-managed data (panel «رخصتی‌های عمومی»); a holiday is a
+     * non-obligated day for every midwife, like a Friday.
+     */
+    public static function holidayName(Carbon $day): ?string
+    {
+        if (self::$holidayMap === null) {
+            self::$holidayMap = [];
+            if (Schema::hasTable('holidays')) {
+                foreach (Holiday::get(['date', 'name']) as $h) {
+                    self::$holidayMap[$h->date->toDateString()] = $h->name;
+                }
+            }
+        }
+
+        return self::$holidayMap[$day->toDateString()] ?? null;
+    }
+
     /**
      * First day the midwife is obligated to attend: her registration day
      * (Asia/Kabul). If the account was created after the day's cutoff,
@@ -202,6 +226,9 @@ class AttendanceService
         }
         if ($day->isFriday()) {
             return 'friday';
+        }
+        if (self::holidayName($day) !== null) {
+            return 'holiday';
         }
         if (self::isOnApprovedLeave($midwife, $day)) {
             return 'leave';

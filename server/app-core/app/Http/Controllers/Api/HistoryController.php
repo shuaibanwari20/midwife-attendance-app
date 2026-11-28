@@ -48,8 +48,20 @@ class HistoryController extends Controller
             $d = $leave->from_date->copy()->max($start)->startOfDay();
             $last = $leave->to_date->copy()->min($end)->startOfDay();
             while ($d->lte($last)) {
-                $leaveDays[$d->toDateString()] = true;
+                // The calendar distinguishes her own requested leave from an
+                // office-granted one; an office leave wins on overlap.
+                $k = $d->toDateString();
+                if (($leaveDays[$k] ?? null) !== 'office') {
+                    $leaveDays[$k] = $leave->source ?? 'request';
+                }
                 $d->addDay();
+            }
+        }
+
+        $holidayMap = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('holidays')) {
+            foreach (\App\Models\Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])->get() as $h) {
+                $holidayMap[$h->date->toDateString()] = $h->name;
             }
         }
 
@@ -95,10 +107,13 @@ class HistoryController extends Controller
                     'absent' => 'غایب',
                     'leave' => 'رخصتی',
                     'friday' => 'روز رخصتی (جمعه)',
+                    'holiday' => 'رخصتی عمومی',
                     'future' => 'آینده',
                     'pending' => 'هنوز نرسیده',
                     default => '—',
                 },
+                'holiday_name' => $holidayMap[$key] ?? null,
+                'leave_source' => $status === 'leave' ? ($leaveDays[$key] ?? null) : null,
                 'check_in_time' => $attendance ? DariDate::time24($attendance->checked_at_server) : null,
                 'check_in_display' => $attendance ? DariDate::time($attendance->checked_at_server) : null,
                 'checkout_time' => $attendance && $attendance->checkout_at ? DariDate::time24($attendance->checkout_at) : null,

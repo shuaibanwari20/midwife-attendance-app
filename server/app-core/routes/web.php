@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAuthController;
+use App\Http\Controllers\Admin\HolidayAdminController;
 use App\Http\Controllers\Admin\SurveyAdminController;
 use App\Http\Controllers\Admin\ClusterAdminController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -42,6 +43,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/map/data', [MapController::class, 'data'])->name('admin.map.data');
 
         Route::get('/surveys', [SurveyAdminController::class, 'index'])->name('admin.surveys');
+        Route::get('/holidays', [HolidayAdminController::class, 'index'])->name('admin.holidays');
+        Route::post('/holidays', [HolidayAdminController::class, 'store'])->name('admin.holidays.store');
+        Route::delete('/holidays/{id}', [HolidayAdminController::class, 'destroy'])->name('admin.holidays.delete');
         Route::get('/work-reports', [WorkReportAdminController::class, 'index'])->name('admin.workReports');
         Route::get('/work-reports/export', [WorkReportAdminController::class, 'export'])->name('admin.workReports.export');
         Route::get('/work-reports/print', [WorkReportAdminController::class, 'print'])->name('admin.workReports.print');

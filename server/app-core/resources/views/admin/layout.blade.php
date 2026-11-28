@@ -59,6 +59,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M9 16.2l2.2 2.2 4-4.2"/></svg>
                 <span>{{ \App\Support\PanelText::t('رخصتی‌ها') }}</span>
             </a>
+            <a href="{{ route('admin.holidays') }}" class="side-link {{ request()->routeIs('admin.holidays*') ? 'active' : '' }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M12 12.2l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2L9.1 14.3l2-.3z"/></svg>
+                <span>{{ \App\Support\PanelText::t('رخصتی‌های عمومی') }}</span>
+            </a>
             <a href="{{ route('admin.surveys') }}" class="side-link {{ request()->routeIs('admin.surveys') ? 'active' : '' }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5V3h6v1.5M9 12h6M9 16h4"/></svg>
                 <span>{{ \App\Support\PanelText::t('نظرسنجی ماهانه') }}</span>
